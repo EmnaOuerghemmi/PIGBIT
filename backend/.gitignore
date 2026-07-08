@@ -1,0 +1,10 @@
+# Secrets
+.env
+*.json
+
+# Google credentials
+google-calendar-sa.json
+__pycache__/
+node_modules/
+.vscode/
+*.pyc

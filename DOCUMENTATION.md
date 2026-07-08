@@ -1,0 +1,571 @@
+# 📘 Documentation PIQBIT — Plateforme de Recrutement (V1)
+
+> Document de livraison V1 — couvre l'architecture, les modules implémentés dans
+> cette itération, l'API, l'installation, l'exécution et les tests.
+> Dernière mise à jour : 2026-06-14.
+
+---
+
+## 1. Présentation
+
+PIQBIT est une plateforme web de recrutement (ATS) augmentée d'un volet IA :
+- **Frontoffice (candidat)** : consultation d'offres, candidature avec CV, suivi,
+  offres sauvegardées, profil.
+- **Backoffice (RH / Admin)** : gestion des offres et candidatures, tableau de
+  bord, recrutement intelligent (scoring IA des CV), entretiens, négociation
+  salariale automatique, carrière, rapports.
+
+### Stack technique
+
+| Couche | Technologie |
+|---|---|
+| Frontend | Angular 17+ (standalone components), TypeScript strict, RxJS |
+| Backend | FastAPI (Python 3.11+), async/await |
+| ORM / DB | SQLAlchemy (async) + PostgreSQL |
+| Auth | JWT (access + refresh), bcrypt, 2FA TOTP, Google OAuth |
+| Cache | Redis |
+| IA / ML | NLP (extraction CV), scoring pondéré, prédiction salaire (ML + fallback heuristique), intégration Claude optionnelle |
+| Temps réel | WebSocket (négociation) |
+
+---
+
+## 2. Architecture
+
+```
+E:\PIQBIT
+├── backend/
+│   └── app/
+│       ├── main.py                 # bootstrap FastAPI + montage routeurs + lifespan
+│       ├── core/                   # config, sécurité (JWT/bcrypt), dépendances RBAC
+│       ├── db/                     # session async, base déclarative, init superadmin
+│       ├── models/                 # SQLAlchemy : user, recruitment, scoring, interview,
+│       │                           #              career, report
+│       ├── schemas/                # Pydantic (validation entrées/sorties)
+│       ├── services/               # logique métier (recruitment, scoring, nlp, cv_parser,
+│       │                           #   salary_prediction, decision, career, analytics, email…)
+│       ├── agents/                 # agents IA (scoring, decision/negotiation, analyzer,
+│       │                           #   recommendation, report_generator, monitoring)
+│       ├── integrations/           # claude_client (Anthropic, optionnel)
+│       └── api/v1/
+│           ├── router.py           # agrège les routeurs sous /api/v1
+│           └── endpoints/          # auth, agents(users), recruitment, scoring, workflow,
+│                                   #   interview, dashboard, career, reports, decision,
+│                                   #   negotiations (monté directement)
+└── frontend/
+    └── src/app/
+        ├── core/                   # services (api, auth, recruitment, user, career…),
+        │                           #   guards (auth/admin), interceptors (jwt), models
+        ├── features/
+        │   ├── auth/               # login, register, forgot/reset password, verify email
+        │   ├── frontoffice/        # job-list, job-detail, my-applications, saved-jobs, profile
+        │   └── backoffice/         # dashboard, jobs-management, applications, users-management,
+        │                           #   recruitment, interview-manager, career, negotiation
+        ├── services/               # negotiation.service (WebSocket)
+        └── shared/components/      # candidate-ranking, cv-analysis, score-breakdown,
+                                    #   interview-scheduler, pagination, kpi-card…
+```
+
+Communication : SPA Angular ↔ API REST FastAPI en HTTP/JSON sécurisé par JWT
+(Bearer). Le WebSocket de négociation est exposé sur `ws://…/api/v1/negotiations/ws/{jobId}`.
+
+Création du schéma : au démarrage, `Base.metadata.create_all` crée les tables
+manquantes (les nouveaux modèles `career_plans`, `saved_jobs`, `report_snapshots`
+sont créés automatiquement). Un superadmin est initialisé au boot.
+
+---
+
+## 3. Modèle de données (ajouts V1)
+
+| Table | Rôle |
+|---|---|
+| `saved_jobs` | offres sauvegardées par un utilisateur (unique `user_id`+`job_offer_id`) |
+| `career_plans` | plans de carrière des employés (statut, progression, poste cible) |
+| `report_snapshots` | snapshots archivés des rapports de recrutement (JSON) |
+
+Tables préexistantes : `users`, `audit_logs`, `job_offers`, `candidates`,
+`applications`, `cv_analyses`, `candidate_scores`, `interview_invitations`,
+`interview_slots`.
+
+---
+
+## 4. Fonctionnalités livrées dans cette itération
+
+| Gestion | Fonctionnalité | Backend | Frontend |
+|---|---|---|---|
+| Candidatures | **CAND-08** Suppression candidature + nettoyage CV/scores/entretiens | `DELETE /recruitment/applications/{id}` (Admin) | bouton « Supprimer » réel (applications backoffice) |
+| Offres | **PUT** /jobs/{id} (mise à jour complète) | `PUT /recruitment/jobs/{id}` (RH/Admin) | `recruitment.service.replaceJob()` |
+| Profil | Zone Danger : suppression compte + changement MDP + sauvegarde réelle | `DELETE /users/me` | profil câblé (deleteMe / changePassword / updateMe) |
+| Front Office | Offres sauvegardées (bout-en-bout) | modèle `saved_jobs` + `GET/POST/DELETE /recruitment/saved-jobs` | page saved-jobs réelle + bouton « Sauvegarder » sur le détail d'offre |
+| Front Office | « Postuler » depuis saved-jobs | — | navigation vers le détail de l'offre |
+| Recrutement IA | Page `/admin/recruitment` câblée au scoring | `POST /recruitment/jobs/{id}/analyze-all`, ranking | sélecteur d'offre + « Analyser tous les CV » + `candidate-ranking` (scores, compétences, recommandation) + KPIs rapports |
+| Négociation | Routeur monté + WebSocket + UI | `negotiations.router` monté (`/api/v1/negotiations/*` + WS) | page `/admin/negotiation` fonctionnelle (formulaire + journal temps réel WS) |
+| Négociation | Prédiction salaire sans modèle | **fallback heuristique** dans `salary_prediction_service` | — |
+| Carrière | Module complet | modèle + service + `GET /career/stats`, `GET/POST/PATCH/DELETE /career/plans` | page `/admin/career` (KPIs réels + table des plans) |
+| Rapports | Module monté | `GET /reports/recruitment-summary`, snapshots | KPIs affichés dans la page Recrutement |
+| Décision | Module monté | `POST /decision/evaluate-offer`, `GET /decision/applications/{id}/recommendation` | — (API exposée) |
+| Agents IA | Scaffolding complété | `base_agent`, `analyzer`, `recommendation`, `report_generator`, `monitoring` | — |
+| Claude/LLM | Intégration optionnelle | `integrations/claude_client` (dégradation gracieuse si pas de clé) | — |
+| Export | Export CSV des candidatures | `GET /recruitment/applications/export` (RH/Admin) | bouton « Exporter CSV » (applications backoffice) |
+| Transverse | Erreurs upload détaillées | validation type/taille (+ fallback extension) | messages d'erreur explicites (0/400/401) |
+| Transverse | Tests | tests endpoints + logique pure | build Angular (typecheck complet) |
+
+---
+
+## 5. Référence API (principaux endpoints)
+
+Base : `http://localhost:8000/api/v1`
+
+### Authentification — `/auth`
+`POST /register` · `POST /login` · `POST /logout` · `POST /refresh` ·
+`POST /verify-email` · `POST /forgot-password` · `POST /reset-password` ·
+`POST /change-password` · `POST /google` · `POST /2fa/*`
+
+### Utilisateurs — `/users`
+`GET /me` · `PATCH /me` · **`DELETE /me`** (suppression compte) ·
+`GET /users` (RH/Admin) · `POST /users` (Admin) · `PATCH /users/{id}` (Admin) ·
+`DELETE /users/{id}` (Admin) · `GET /users/audit-logs`
+
+### Recrutement — `/recruitment`
+| Méthode | Endpoint | Accès |
+|---|---|---|
+| GET | `/jobs` (recherche, tri, pagination) | public |
+| GET | `/jobs/{id}` | public |
+| POST | `/jobs` | RH/Admin |
+| PATCH | `/jobs/{id}` | RH/Admin |
+| **PUT** | `/jobs/{id}` | RH/Admin |
+| DELETE | `/jobs/{id}` | RH/Admin |
+| POST | `/apply/{job_id}` (multipart CV) | authentifié |
+| GET | `/my-applications` | authentifié |
+| GET | `/applications` | RH/Admin |
+| PATCH | `/applications/{id}` (statut) | RH/Admin |
+| **DELETE** | `/applications/{id}` | Admin |
+| **GET** | `/applications/export` (CSV) | RH/Admin |
+| **GET/POST/DELETE** | `/saved-jobs[/{job_id}]` | authentifié |
+| GET | `/cv-preview/{path}`, `/cv-download/{path}` | authentifié |
+
+### Scoring IA — `/recruitment`
+`POST /applications/{id}/analyze` · `POST /jobs/{id}/analyze-all` ·
+`GET /applications/{id}/analysis` · `GET /applications/{id}/score` ·
+`GET /jobs/{id}/ranking`
+
+### Workflow — `/recruitment`
+`POST /applications/{id}/schedule-interview` ·
+`POST /applications/{id}/reject` · `POST /applications/{id}/start-negotiation`
+
+### Carrière — `/career` (RH/Admin/Staff)
+`GET /stats` · `GET /plans` · `POST /plans` · `PATCH /plans/{id}` · `DELETE /plans/{id}`
+
+### Rapports — `/reports` (RH/Admin)
+`GET /recruitment-summary` · `POST /snapshot` · `GET ` (liste) · `GET /{id}`
+
+### Décision — `/decision` (RH/Admin)
+`POST /evaluate-offer` · `GET /applications/{id}/recommendation`
+
+### Négociation — `/api/v1/negotiations` (monté directement)
+`POST /initiate` · `POST /process-counter-offer` · `GET /summary/{job_id}` ·
+`WS /ws/{job_id}`
+
+Documentation interactive : **`http://localhost:8000/docs`** (Swagger) et `/redoc`.
+
+---
+
+## 6. Sécurité & RBAC
+
+- **JWT** Bearer obligatoire sur les routes protégées ; refresh automatique côté
+  frontend (intercepteur) ; mots de passe hachés **bcrypt**.
+- **Rôles** : `ADMIN`, `RH_MANAGER`, `RH_STAFF`, `READ_ONLY` (candidat). Les
+  dépendances `require_role(...)` protègent les endpoints ; le superadmin passe
+  toujours.
+- **Suppression de compte** : soft-delete (`deleted_at`), révocation du refresh
+  token ; le superadmin est protégé.
+- **Fichiers CV** : whitelist PDF/DOC/DOCX, max 5 Mo, suppression du fichier
+  lors de la suppression de la candidature.
+- **CORS** restreint au frontend ; validation Pydantic sur toutes les entrées.
+
+---
+
+## 7. Volet IA
+
+| Composant | Comportement |
+|---|---|
+| Extraction CV (`nlp_service`, `cv_parser`) | compétences, expérience, formation, mots-clés |
+| Scoring (`scoring_service`) | score pondéré compétences/expérience/formation (poids par offre), ranking |
+| Prédiction salaire (`salary_prediction_service`) | modèle ML pickle si présent ; **sinon fallback heuristique** (base + primes rôle/séniorité/compétences/rating) |
+| Décision négociation (`decision_service`, `decision_agent`) | accept/contre-offre/reject selon ratio offre/prédiction, simulation de rounds, diffusion WebSocket |
+| Agents (`agents/`) | analyzer, recommendation, report_generator, monitoring — chacun avec **fallback déterministe** |
+| Claude (`integrations/claude_client`) | activé si `ANTHROPIC_API_KEY` défini ; sinon textes déterministes. SDK importé en lazy (jamais bloquant) |
+
+> Aucune dépendance « dure » à un service externe : tout le volet IA fonctionne
+> hors-ligne avec des fallbacks déterministes. Claude et le modèle ML salaire sont
+> des améliorations optionnelles.
+
+---
+
+## 8. Installation & exécution
+
+### Prérequis
+- Python 3.11+ , Node.js 18+ , PostgreSQL, (Redis optionnel).
+
+### Backend
+```powershell
+cd E:\PIQBIT\backend
+python -m venv venv
+.\venv\Scripts\Activate.ps1
+pip install -r requirements.txt   # ou installer les deps listées (fastapi, uvicorn,
+                                  # sqlalchemy, asyncpg/psycopg, pydantic, pydantic-settings,
+                                  # python-jose, passlib[bcrypt], pyotp, numpy, pandas,
+                                  # scikit-learn, pdfplumber, python-docx, redis, httpx)
+# Configurer .env (voir .env existant) : DATABASE_URL, SECRET_KEY, SMTP_*, etc.
+# Optionnel IA : ANTHROPIC_API_KEY, ANTHROPIC_MODEL=claude-sonnet-4-6
+uvicorn app.main:app --reload --port 8000
+```
+
+### Frontend
+```powershell
+cd E:\PIQBIT\frontend
+npm install
+npm start            # ng serve → http://localhost:4200
+# Build production :
+npx ng build
+```
+
+Variables d'environnement frontend : `src/environments/environment.ts`
+(`apiUrl`, **`wsUrl`** ajouté pour le WebSocket de négociation).
+
+### Compte superadmin (seed au démarrage)
+`emna.ouerghemmi@esprit.tn` / `123Emna?`
+
+---
+
+## 9. Tests
+
+### Backend
+- **Tests d'endpoints** (`tests/test_recruitment_extra.py`) : saved-jobs, PUT
+  jobs, suppression candidature, suppression compte, carrière, rapports,
+  décision, export — avec contrôle RBAC. S'exécutent via :
+  ```powershell
+  cd E:\PIQBIT\backend
+  pytest -q
+  ```
+- **Tests de logique pure** (`tests/test_decision_logic.py`) : moteur de
+  décision de négociation, exécutables sans dépendances :
+  ```powershell
+  python tests/test_decision_logic.py   # 4/4 PASS
+  ```
+- Tests existants : `test_auth.py`, `test_users.py`.
+
+### Frontend
+```powershell
+cd E:\PIQBIT\frontend
+npx ng build          # typecheck complet de tout le câblage (doit réussir)
+npx ng test           # tests unitaires Karma/Jasmine
+```
+
+> État de validation à la livraison : `ng build` ✅ (bundle généré),
+> compilation backend complète ✅, tests logique pure ✅ 4/4.
+> Les tests d'endpoints nécessitent l'environnement Python complet (deps + DB).
+
+---
+
+## 9bis. Design system & UI/UX (premium)
+
+PIQBIT utilise deux design systems cohérents partageant la même typographie :
+
+- **Frontoffice** (candidat) : thème sombre teal/cyan « glassmorphism » (OKLCH),
+  défini dans `src/styles.css` sous `.layout-wrapper`. Surfaces translucides
+  (blur + saturation), rayons 18px, hover lift, dégradés émeraude/cyan sur les CTA.
+- **Backoffice** (RH/Admin) : design system « premium dashboard » (inspiré
+  Linear/Stripe/Notion) — canvas crème, navigation forest-teal, accent gold.
+  Tous les **tokens** (`--c-*`, `--r-*`, `--s-*`, `--sh-*`, `--fs-*`, `--ease-*`)
+  sont déclarés sur `.backoffice-wrapper` et héritent à tous les composants.
+
+**Polish premium appliqué dans cette itération :**
+- **Typographie** : chargement de **Inter** + **Plus Jakarta Sans** (utilisées par
+  les tokens mais auparavant non chargées → fallback système). `index.html` :
+  `preconnect` + `font-display=swap`. Titre corrigé (`PIQPIT` → `PIQBIT`).
+- **Couche de base globale** (`styles.css`) : `box-sizing` universel, scroll
+  fluide, **scrollbars custom**, **`:focus-visible`** accessible (anneau teal),
+  **`::selection`** de marque, micro-interactions boutons (press), respect de
+  `prefers-reduced-motion`.
+- **Frontoffice** : rayons des cartes/inputs/boutons agrandis, glass raffiné
+  (blur+saturate), **hover lift** sur les `job-card`, dégradés et ombres premium
+  sur les CTA, inputs plus lisibles.
+- **Harmonisation** des écrans ajoutés (Recrutement IA, Négociation, Carrière,
+  Export) sur les tokens du design system (couleurs, rayons, ombres, focus gold)
+  — suppression des couleurs « brutes ».
+- **Auth** : login aligné sur la typo Inter + rayons modernisés.
+
+Budgets respectés (`ng build` ✅, aucune alerte). `styles.css` ≈ 15 kB.
+
+---
+
+## 10. Reste-à-faire / évolutions futures (hors périmètre V1)
+
+- ~~Modèle ML salaire entraîné~~ ✅ **livré** (V1.1) — voir §11.
+- ~~Persistance des négociations en base~~ ✅ **livré** (V1.1) — voir §11.
+- Pages frontend dédiées pour Rapports et Décision (API déjà disponibles).
+- Internationalisation (FR/AR) et tests E2E.
+
+---
+
+## 11. Négociation persistée + modèle ML salaire (V1.1)
+
+### 11.1 Persistance des négociations
+Les négociations ne sont plus stockées en mémoire process : elles sont
+persistées en base et auditables.
+
+| Table | Rôle |
+|---|---|
+| `negotiations` | une négociation (job, candidat, offre initiale, salaire prédit, statut final, `rounds_count`) |
+| `negotiation_rounds` | chaque échange (round) : `actor` (employer/candidate/system), `amount`, `decision`, `reason` |
+
+- Modèles : `app/models/negotiation.py` (cascade `Negotiation` → `NegotiationRound`).
+- Repository async : `app/services/negotiation_repository.py`
+  (`create`, `add_round`, `finalize`, `get_latest_by_job`, `list`, `stats`, `to_summary`).
+- `POST /api/v1/negotiations/initiate` persiste désormais la négociation et ses
+  rounds (best-effort, sans bloquer la réponse temps réel).
+- Nouveaux endpoints de lecture (auth requise) :
+  `GET /api/v1/negotiations/history/{job_id}` (dernière négociation persistée + rounds),
+  `GET /api/v1/negotiations/` (liste, filtre `status`, pagination),
+  `GET /api/v1/negotiations/stats` (agrégats par statut).
+
+### 11.2 Modèle ML de prédiction salariale (marché TN)
+Le fallback heuristique est remplacé (quand le modèle est présent) par un
+**RandomForestRegressor** entraîné sur `backend/datasets/tunisia_it_salaries.csv`.
+
+- Script d'entraînement : `backend/scripts/train_salary_model.py`
+  → sérialise `backend/salary_model_piqbit.p` au format `piqbit_salary_v1`
+  (consommé par `SalaryPredictionService._predict_piqbit`).
+- Features (identiques entraînement/inférence) :
+  `one-hot(catégorie) + séniorité(1..4) + expérience(années) + multi-hot(compétences)`.
+- Cible : `salary_avg_tnd` (TND, mensuel brut).
+- Performance hold-out (20 %) : **MAE ≈ 557 TND, R² ≈ 0.81** (185 lignes).
+- Réentraînement : `cd backend && python scripts/train_salary_model.py`.
+
+### 11.3 Tests
+```powershell
+cd E:\PIQBIT\backend
+pytest tests/test_negotiation_persistence.py tests/test_salary_model.py -v
+# → 15 passed
+```
+- `test_negotiation_persistence.py` : repository (create/add_round/finalize/list/
+  stats), cascade ORM, `to_summary`, RBAC (401), et intégration
+  `POST /initiate` → `GET /history`.
+- `test_salary_model.py` : construction des features, contrat
+  entraînement→`piqbit_salary_v1`, chargement du modèle par le service,
+  prédictions TND réalistes, monotonicité séniorité.
+
+> Dépendances ajoutées : `scikit-learn`, `numpy`, `pandas` (modèle) ;
+> `aiosqlite`, `pytest`, `pytest-asyncio`, `httpx` (tests).
+
+---
+
+## 12. Budget par département + Employés (V1.2)
+
+### 12.1 Gestion du budget par département
+Nouveau module full-stack avec **données de démonstration insérées automatiquement**
+au premier démarrage (seed idempotent dans le lifespan).
+
+| Table | Rôle |
+|---|---|
+| `department_budgets` | enveloppe annuelle d'un département (unique `department`+`year`, TND) |
+| `budget_expenses` | lignes de dépense (SALAIRES / RECRUTEMENT / FORMATION / OUTILS / AUTRE) |
+
+- Backend : `app/models/budget.py`, `app/services/budget_service.py`,
+  endpoints `GET /budget/stats` (KPIs + agrégats par département + **effectif
+  croisé avec le module Employés**), CRUD `/budget/departments[/{id}]`,
+  `/budget/departments/{id}/expenses`, `DELETE /budget/expenses/{id}`,
+  `POST /budget/seed`. Accès **ADMIN / RH_MANAGER**.
+- Frontend : page **`/admin/budget`** (lien sidebar « Budget ») — 4 KPI cards
+  (alloué, dépensé, restant, taux global), table des départements avec barre
+  d'utilisation colorée (vert < 70 %, orange < 90 %, rouge ≥ 90 %), ligne
+  dépliable montrant le **détail des dépenses** + ajout/suppression de dépense
+  inline. Service : `core/services/budget.service.ts`.
+
+### 12.2 Module Employés (orphelin → complété)
+Les composants `features/employees/*` existaient sans backend ni routes : ils
+sont désormais **câblés bout-en-bout**.
+
+- Backend : table `employees`, service + endpoints `GET/POST /employees`,
+  `GET/PUT/DELETE /employees/{id}`, `POST /employees/seed` — réponses en
+  **camelCase** (contrat du modèle Angular existant). Accès RH/Admin.
+- Frontend : routes **`/admin/employees`** (liste avec filtres département/
+  statut, avatars, badges de statut), `/admin/employees/new` et
+  `/{id}/edit` (formulaire création/édition), `/{id}` (fiche détail + zone
+  danger). Lien sidebar « Employés ». Design system backoffice respecté.
+- **Seed** : 12 employés de démo (répartis sur 7 départements, salaires
+  cohérents avec le dataset marché TN) insérés au premier démarrage.
+
+### 12.3 Nettoyage de la dette frontend
+Suppression des coquilles vides jamais routées ni référencées (doublons des
+vraies pages backoffice) : `features/career/career-plan`,
+`features/negotiation/*`, `features/recruitment/*` (doublon de
+`shared/components/candidate-ranking`), `features/dashboard`.
+
+### 12.4 Fiabilisation de la suite de tests
+`tests/conftest.py` corrigé pour pytest-asyncio ≥ 1.x (une event loop par
+test) : moteur SQLAlchemy de test en `NullPool` + fixture autouse qui
+réinitialise le client Redis global par test. Élimine les échecs aléatoires
+« RuntimeError: Event loop is closed » qui touchaient les tests d'endpoints.
+
+### 12.5 Tests
+```powershell
+cd E:\PIQBIT\backend
+pytest tests/test_budget_employees.py -v
+```
+Seed idempotent, agrégation des stats (dont headcount croisé), flux dépense
+(ajout → stats à jour → suppression), CRUD employé camelCase, RBAC (401/403).
+
+> Note build frontend : budget CSS `anyComponentStyle` relevé à 20 kB warn /
+> 64 kB error dans `angular.json` (plusieurs composants préexistants — ex.
+> jobs-management ≈ 59 kB — dépassaient déjà l'ancien seuil de 8 kB).
+
+---
+
+## 13. Pages Rapports & Décision (V1.3)
+
+### 13.1 Agent de reporting (complété)
+`app/agents/report_generator_agent.py` produit désormais un **rapport structuré**
+`{ narrative, highlights[], recommendations[], generated_by }` :
+- **Synthèse** rédigée (Claude si `ANTHROPIC_API_KEY` défini, sinon fallback déterministe) ;
+- **Points clés** contextuels (backlog en attente, entretiens/négociations en cours,
+  offre la plus attractive, qualité du vivier selon le score IA moyen) ;
+- **Recommandations** actionnables (traiter le backlog, revoir le sourcing,
+  archiver les offres dormantes…).
+
+### 13.2 Backend Rapports — CRUD complet + PDF
+| Méthode | Endpoint | Rôle |
+|---|---|---|
+| POST | `/reports/snapshot` | génère (via l'agent) et archive un rapport ; `{title}` optionnel |
+| GET | `/reports?page=&page_size=` | **liste paginée** `{items,total,page,pages,page_size}` |
+| GET | `/reports/{id}` | lecture unitaire |
+| PATCH | `/reports/{id}` | **renommage** |
+| DELETE | `/reports/{id}` | **suppression** |
+| GET | `/reports/{id}/pdf` | **téléchargement PDF** (reportlab, hors-ligne) |
+
+Le PDF (`app/services/pdf_service.py`) reprend la palette du design system :
+KPIs, synthèse, points clés, recommandations, candidatures par statut, top offres.
+
+### 13.3 Frontend
+- **`/admin/reports`** (sidebar « Rapports ») : KPIs live, barre « 🤖 Générer le
+  rapport » (titre optionnel), **table paginée** (composant `app-pagination`
+  partagé), ligne dépliable (synthèse + points clés + recommandations + chips
+  de statuts), **renommage inline**, **téléchargement PDF** (blob), suppression.
+  Badge indiquant si le contenu vient de Claude ou de l'agent déterministe.
+- **`/admin/decision`** (sidebar « Décision ») : recommandations d'embauche par
+  candidat (sélecteur d'offre → ranking scoré → `HIRE / INTERVIEW / HOLD /
+  REJECT` avec justification, bouton « Recommander tous ») + formulaire
+  d'évaluation d'offre salariale (prédit / proposé / confiance → décision
+  accepter / contre-offre / rejeter).
+- Service : `core/services/report.service.ts`. Routes en lazy-loading.
+
+### 13.4 Tests
+```powershell
+cd E:\PIQBIT\backend
+pytest tests/test_reports_module.py -v
+```
+Agent (structure + insights contextuels), PDF valide (`%PDF-`), flux CRUD
+bout-en-bout (génération → liste paginée → renommage → PDF → suppression),
+mathématique de pagination (3 items / page_size 2 → 2 pages sans doublon), RBAC.
+
+> Dépendance ajoutée : `reportlab` (génération PDF).
+
+---
+
+## 14. Gestion d'entretiens — calendrier réel (V1.4)
+
+### 14.1 Existant conservé
+- Vue **calendrier hebdomadaire** dans `/admin/interviews` (`GET /interview/calendar`,
+  états RESERVED / PROPOSED / AVAILABLE).
+- Fichier **.ics** envoyé au candidat dans l'email de confirmation.
+
+### 14.2 Nouveautés
+| Fonction | Détail |
+|---|---|
+| **Sync Google Calendar** | à la confirmation d'un créneau par le candidat, l'entretien est poussé automatiquement dans l'agenda Google configuré (événement avec rappels email J-1 + popup 30 min) ; à l'annulation, l'événement est supprimé. Best-effort : sans credentials, tout le flux continue (emails + ICS). |
+| `GET /interview/google-status` | état de l'intégration (configurée ou non + raison) — affiché en badge dans l'UI |
+| `POST /interview/invitations/{id}/sync-google` | (re)pousse manuellement un entretien confirmé (503 si non configuré, 409 si non confirmé) |
+| `GET /interview/invitations/{id}/ics` | téléchargement du **.ics** côté RH (importable Google/Outlook/Apple sans API) |
+| Modèle | colonne `google_event_id` sur `interview_invitations` (micro-migration auto au boot PostgreSQL) |
+
+- Client : `app/integrations/google_calendar.py` (compte de service Google,
+  REST v3, jamais bloquant — pattern identique au client Claude).
+- UI (`/admin/interviews`) : badge « 📆 Google Calendar : connecté / non
+  configuré » dans l'en-tête, boutons **ICS** et **Sync Google** sur chaque
+  invitation confirmée (toast de feedback).
+
+### 14.3 Activer Google Calendar — credentials requis
+1. **Google Cloud Console** → créer un projet → activer l'API **Google Calendar**.
+2. **Créer un compte de service** (IAM & Admin → Service Accounts) → générer
+   une **clé JSON** et la télécharger (ex. `backend/google-calendar-sa.json` —
+   à garder hors git).
+3. **Partager l'agenda cible** avec l'email du compte de service
+   (`xxx@yyy.iam.gserviceaccount.com`) avec le droit « Apporter des
+   modifications aux événements », puis copier l'**ID de l'agenda**
+   (Paramètres de l'agenda → « ID de l'agenda »).
+4. `.env` :
+   ```env
+   GOOGLE_CALENDAR_CREDENTIALS_FILE=E:\PIQBIT\backend\google-calendar-sa.json
+   GOOGLE_CALENDAR_ID=xxxxxxxx@group.calendar.google.com
+   # Optionnel (Google Workspace + domain-wide delegation) :
+   # GOOGLE_CALENDAR_IMPERSONATE=rh@votre-domaine.tn
+   GOOGLE_CALENDAR_TIMEZONE=Africa/Tunis
+   ```
+> Sans Workspace/délégation, les invités ne sont pas ajoutés à l'événement
+> (limitation Google des comptes de service) — le candidat reçoit de toute
+> façon l'invitation .ics par email. Dépendance ajoutée : `google-auth`.
+
+### 14.4 Tests
+`tests/test_interview_calendar.py` : statut Google non configuré (dégradation),
+sync → 503 sans credentials, téléchargement ICS (200 `text/calendar`, contenu
+RFC 5545) et 409 si non confirmé, colonne `google_event_id`.
+
+---
+
+## 15. Notifications in-app + temps réel (V1.5)
+
+### 15.1 Deux flux couverts
+- **Candidat** : changement de statut de candidature, entretien planifié /
+  confirmé / annulé, négociation salariale lancée.
+- **RH → Admin** : toute action significative d'un compte `RH_MANAGER` /
+  `RH_STAFF` notifie **tous les comptes ADMIN** — offre créée, statut de
+  candidature changé, entretien planifié/annulé, employé ajouté, dépense
+  budget ajoutée, plan de carrière créé, négociation lancée, rapport généré.
+  Un admin n'est jamais notifié de ses propres actions (no-op automatique).
+
+### 15.2 Backend
+| Composant | Rôle |
+|---|---|
+| `app/models/notification.py` | table `notifications` (recipient, actor, type, title, message, link, is_read) |
+| `app/services/notification_service.py` | `notify_user()` (destinataire précis), `notify_admins()` (diffusion à tous les ADMIN, no-op si l'acteur est admin), listing paginé, unread-count, mark-read(-all), delete |
+| `app/services/notification_ws.py` | registre de connexions WebSocket par `user_id`, envoi ciblé temps réel |
+| `app/api/v1/endpoints/notifications.py` | REST (`GET /notifications`, `/unread-count`, `PATCH /{id}/read`, `POST /read-all`, `DELETE /{id}`) + `WS /notifications/ws?token=` |
+
+**Points d'intégration** (déclenchement) :
+`recruitment.py` (offre créée, statut candidature changé), `workflow.py`
+(entretien planifié, candidature rejetée, négociation lancée),
+`interview.py` (entretien confirmé → notifie le RH créateur, entretien
+annulé), `employees.py`, `budget.py`, `career.py`, `negotiations.py`,
+`reports.py` (action RH → notifie les admins).
+
+### 15.3 Frontend
+- Service partagé `core/services/notification.service.ts` : REST + WebSocket
+  (`rxjs/webSocket`, reconnexion auto après 5s si déconnecté et toujours
+  authentifié).
+- **Frontoffice** (candidat) : le mock de notifications déjà présent dans
+  `features/frontoffice/header` est remplacé par les vraies données (badge
+  de compteur, dropdown avec liste réelle, « tout marquer comme lu »,
+  navigation au clic via `link`).
+- **Backoffice** (RH/Admin) : nouveau dropdown de notifications dans le
+  topbar (`features/backoffice/layout`), même comportement, tokens du
+  design system backoffice (`--c-*`).
+- Connexion WebSocket établie à l'authentification, fermée au logout.
+
+### 15.4 Tests
+`tests/test_notifications.py` (11 tests) : service (create, `notify_admins`
+diffuse à tous les admins et exclut l'acteur admin lui-même, mark-read,
+mark-all-read, delete), API (401 sans auth, CRUD bout-en-bout, scoping par
+destinataire — 404 si on tente de lire la notification d'un autre user),
+triggers métier (offre créée par RH → notifie l'admin ; offre créée par un
+admin → aucune auto-notification ; changement de statut de candidature →
+notifie le candidat ET les admins).

@@ -1,0 +1,11 @@
+job_title,avg_salary_yearly_mean,avg_salary_yearly_median,avg_salary_yearly_min,avg_salary_yearly_max,count_records,avg_salary_monthly_mean,avg_rating,skills
+software development engineer,781570.29,600000.0,12000.0,8700000.0,4702,65130.86,3.92,R
+android developer,508105.86,400000.0,12000.0,7100000.0,4058,42342.15,3.88,R
+software development engineer (sde),885917.14,700000.0,12000.0,90000000.0,3228,73826.43,3.95,R
+front end developer,579359.39,480000.0,24000.0,5400000.0,2824,48279.95,3.95,R
+test engineer,502066.44,400000.0,12672.0,5200000.0,2628,41838.87,3.83,R
+web developer,439625.3,324000.0,12000.0,4400000.0,1706,36635.44,3.93,R
+software development engineer - intern,399218.74,324000.0,12000.0,2700000.0,1542,33268.23,3.97,R
+software development engineer in test (sdet),777185.32,624000.0,33792.0,9400000.0,1532,64765.44,3.9,R
+backend developer,663233.62,500000.0,24000.0,4200000.0,1068,55269.47,4.01,R
+python developer,487069.03,400000.0,24000.0,6900000.0,970,40589.09,4.0,"Python, R"
