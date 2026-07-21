@@ -1,0 +1,355 @@
+"""
+Moteur CAG (Cache-Augmented Generation) — 100 % hors-ligne, sans LLM externe.
+
+Principe :
+  1. Un corpus (base de connaissances RH + passages de CV) est embeddé UNE
+     seule fois ; les vecteurs sont mis en **cache** (colonne `vector_json` +
+     cache mémoire). C'est le « cache-augmented ».
+  2. À la question, on n'embed QUE la question, puis on récupère les passages
+     les plus proches par cosinus (corpus petit → instantané, marche sur SQLite).
+  3. La « génération » est **extractive** : on renvoie le passage/l'entrée
+     source le/la plus pertinent·e, tel·le quel·le, avec sa citation et un score
+     de confiance. Aucune génération de texte → **zéro hallucination possible**.
+  4. Un cache de réponses (question → réponse) rend les questions répétées
+     instantanées.
+
+Réutilise `embedding_service` (sentence-transformers si dispo, sinon hash
+déterministe) — aucune dépendance à Claude.
+"""
+import hashlib
+import logging
+import re
+from collections import OrderedDict
+from typing import Optional
+from uuid import UUID
+
+from sqlalchemy import select, func
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from app.models.knowledge import KnowledgeEntry, CVChunk
+from app.models.recruitment import Application, Candidate
+from app.models.scoring import CVAnalysis
+from app.services.embedding_service import embedding_service
+
+logger = logging.getLogger(__name__)
+
+# En-dessous de ce cosinus, on considère qu'aucune source n'est pertinente.
+MIN_CONFIDENCE = 0.12
+
+_SENT_SPLIT = re.compile(r"(?<=[.!?])\s+|\n+")
+
+
+def _split_passages(text: str, *, min_len: int = 20, max_len: int = 400) -> list[str]:
+    """Découpe un texte en passages exploitables (phrases / lignes)."""
+    raw = [p.strip(" \t•-–·").strip() for p in _SENT_SPLIT.split(text or "")]
+    passages: list[str] = []
+    for p in raw:
+        if len(p) < min_len:
+            continue
+        # Un passage très long sans ponctuation (fréquent dans les CV) est coupé.
+        while len(p) > max_len:
+            cut = p.rfind(" ", 0, max_len)
+            cut = cut if cut > min_len else max_len
+            passages.append(p[:cut].strip())
+            p = p[cut:].strip()
+        if len(p) >= min_len:
+            passages.append(p)
+    return passages
+
+
+class CAGService:
+    def __init__(self) -> None:
+        # Cache mémoire des vecteurs de la base de connaissances : (id, title,
+        # content, category, source, vector). Chargé une fois, invalidé au reindex.
+        self._kb_cache: Optional[list[dict]] = None
+        self._kb_cache_backend: Optional[str] = None
+        # Cache de réponses (LRU simple) : clé (backend, question normalisée).
+        self._answer_cache: "OrderedDict[str, dict]" = OrderedDict()
+        self._answer_cache_max = 256
+
+    # ── Base de connaissances : seed + indexation (cache) ─────────────────────
+
+    async def seed_default_kb(self, db: AsyncSession) -> int:
+        """Insère une FAQ RH de démonstration (idempotent)."""
+        existing = (await db.execute(select(func.count(KnowledgeEntry.id)))).scalar_one()
+        if existing:
+            return 0
+        demo = [
+            ("Comment postuler à une offre ?", "CANDIDATURE",
+             "Pour postuler, ouvrez la page de l'offre depuis « Offres d'emploi », "
+             "cliquez sur « Postuler » et téléversez votre CV au format PDF, DOC ou "
+             "DOCX (5 Mo maximum). Votre candidature est enregistrée immédiatement et "
+             "analysée automatiquement par notre IA."),
+            ("Combien de temps pour recevoir une réponse ?", "PROCESS",
+             "Le délai moyen de réponse est de 48 heures. Vous êtes notifié·e à chaque "
+             "étape : réception de la candidature, planification d'entretien, décision "
+             "et négociation."),
+            ("Comment se déroule un entretien ?", "ENTRETIEN",
+             "Si votre profil est retenu, le recruteur vous propose plusieurs créneaux "
+             "d'entretien. Vous choisissez le créneau qui vous convient via un lien "
+             "sécurisé, sans avoir à créer de compte supplémentaire. L'entretien est "
+             "ajouté à votre agenda et un rappel vous est envoyé."),
+            ("Qu'est-ce que le score IA de ma candidature ?", "CANDIDATURE",
+             "Chaque candidature reçoit un score de 0 à 100 calculé à partir de trois "
+             "critères pondérés : l'adéquation des compétences, l'expérience et la "
+             "formation par rapport aux exigences du poste. Un score élevé indique un "
+             "profil fortement aligné."),
+            ("Comment est déterminé mon salaire ?", "PROCESS",
+             "En phase de négociation, un modèle estime une fourchette de salaire de "
+             "référence pour le poste sur le marché tunisien. Le recruteur s'appuie sur "
+             "cette estimation pour formuler une offre, et la négociation vise le meilleur "
+             "accord pour les deux parties."),
+            ("Puis-je suivre mes candidatures ?", "CANDIDATURE",
+             "Oui. La page « Mes candidatures » affiche en temps réel le statut de "
+             "chacune de vos candidatures (en attente, examinée, entretien, acceptée, "
+             "rejetée), votre score IA et les prochaines étapes."),
+            ("Le matching sémantique, qu'est-ce que c'est ?", "RECRUTEMENT",
+             "Le matching sémantique compare le sens de votre CV avec celui de l'offre, "
+             "pas seulement les mots-clés exacts. Ainsi, une compétence proche (par "
+             "exemple Vue.js pour une offre React) est reconnue comme pertinente."),
+            ("Comment protégez-vous mes données ?", "POLITIQUE",
+             "Vos données personnelles et votre CV sont stockés de façon isolée par "
+             "utilisateur. L'accès est protégé par authentification (JWT), les mots de "
+             "passe sont chiffrés, et vos fichiers sont supprimés lorsque vous supprimez "
+             "la candidature associée."),
+        ]
+        for title, category, content in demo:
+            db.add(KnowledgeEntry(title=title, category=category, content=content, source="FAQ PIQBIT"))
+        await db.flush()
+        self._invalidate_caches()
+        return len(demo)
+
+    async def index_knowledge(self, db: AsyncSession) -> int:
+        """Embed (met en cache) toutes les entrées dont le vecteur manque ou est
+        obsolète (backend d'embedding changé). Retourne le nombre (ré)indexé."""
+        backend = embedding_service.backend
+        entries = (await db.execute(select(KnowledgeEntry))).scalars().all()
+        count = 0
+        for e in entries:
+            if e.vector_json and e.model == backend:
+                continue
+            text = f"{e.title}\n{e.content}"
+            e.vector_json = embedding_service.embed(text)
+            e.model = backend
+            count += 1
+        if count:
+            await db.flush()
+        self._invalidate_caches()
+        return count
+
+    async def _load_kb_cache(self, db: AsyncSession) -> list[dict]:
+        """Charge (une fois) les vecteurs KB en cache mémoire pour un backend donné."""
+        backend = embedding_service.backend
+        if self._kb_cache is not None and self._kb_cache_backend == backend:
+            return self._kb_cache
+        entries = (await db.execute(select(KnowledgeEntry))).scalars().all()
+        cache: list[dict] = []
+        for e in entries:
+            if not e.vector_json or e.model != backend:
+                e.vector_json = embedding_service.embed(f"{e.title}\n{e.content}")
+                e.model = backend
+            cache.append({
+                "id": str(e.id), "title": e.title, "content": e.content,
+                "category": e.category, "source": e.source, "vector": e.vector_json,
+            })
+        await db.flush()
+        self._kb_cache = cache
+        self._kb_cache_backend = backend
+        return cache
+
+    def _invalidate_caches(self) -> None:
+        self._kb_cache = None
+        self._kb_cache_backend = None
+        self._answer_cache.clear()
+
+    # ── Question → base de connaissances (RH copilot / assistant) ─────────────
+
+    async def ask(self, db: AsyncSession, question: str, *, top_k: int = 4) -> dict:
+        """
+        Répond à une question à partir de la base de connaissances, en mode
+        extractif (renvoie l'entrée source la plus pertinente + sources liées).
+        """
+        question = (question or "").strip()
+        if not question:
+            return {"answer": "Posez une question.", "confidence": 0.0, "sources": [], "from_cache": False}
+
+        cache_key = self._answer_cache_key(question)
+        if cache_key in self._answer_cache:
+            cached = dict(self._answer_cache[cache_key])
+            cached["from_cache"] = True
+            self._answer_cache.move_to_end(cache_key)
+            return cached
+
+        kb = await self._load_kb_cache(db)
+        if not kb:
+            return {"answer": "La base de connaissances est vide.", "confidence": 0.0,
+                    "sources": [], "from_cache": False}
+
+        qv = embedding_service.embed(question)
+        scored = sorted(
+            ((embedding_service.cosine(qv, e["vector"]), e) for e in kb),
+            key=lambda t: t[0], reverse=True,
+        )
+        best_score, best = scored[0]
+
+        if best_score < MIN_CONFIDENCE:
+            result = {
+                "answer": "Je n'ai pas trouvé de réponse fiable dans la base de "
+                          "connaissances. Reformulez votre question ou contactez le support.",
+                "confidence": round(best_score * 100, 1),
+                "sources": [], "from_cache": False,
+            }
+        else:
+            result = {
+                "answer": best["content"],
+                "confidence": round(best_score * 100, 1),
+                "sources": [
+                    {"id": e["id"], "title": e["title"], "category": e["category"],
+                     "source": e["source"], "score": round(s * 100, 1)}
+                    for s, e in scored[:top_k] if s >= MIN_CONFIDENCE
+                ],
+                "from_cache": False,
+            }
+
+        self._store_answer(cache_key, result)
+        return result
+
+    # ── Question → CV d'un candidat (Q&A extractif sourcé) ────────────────────
+
+    async def _ensure_cv_chunks(self, db: AsyncSession, application_id: UUID) -> list[dict]:
+        """Découpe + embed (met en cache) les passages d'un CV, une seule fois."""
+        backend = embedding_service.backend
+        rows = (
+            await db.execute(
+                select(CVChunk).where(CVChunk.application_id == application_id)
+                .order_by(CVChunk.chunk_index)
+            )
+        ).scalars().all()
+        if rows and all(r.model == backend for r in rows):
+            return [{"index": r.chunk_index, "content": r.content, "vector": r.vector_json} for r in rows]
+
+        # (Re)construire les chunks depuis le texte brut du CV analysé.
+        analysis = (
+            await db.execute(select(CVAnalysis).where(CVAnalysis.application_id == application_id))
+        ).scalar_one_or_none()
+        if not analysis or not (analysis.raw_text or "").strip():
+            return []
+
+        for r in rows:  # purge des chunks obsolètes (backend changé)
+            await db.delete(r)
+        await db.flush()
+
+        passages = _split_passages(analysis.raw_text)
+        chunks: list[dict] = []
+        for i, passage in enumerate(passages):
+            vec = embedding_service.embed(passage)
+            db.add(CVChunk(application_id=application_id, chunk_index=i,
+                           content=passage, vector_json=vec, model=backend))
+            chunks.append({"index": i, "content": passage, "vector": vec})
+        await db.flush()
+        return chunks
+
+    async def ask_cv(self, db: AsyncSession, application_id: UUID, question: str,
+                     *, top_k: int = 3) -> dict:
+        """
+        Répond à une question sur un CV : renvoie le passage exact du CV le plus
+        pertinent (extraction, pas de génération) + le contexte voisin.
+        """
+        question = (question or "").strip()
+        app = (
+            await db.execute(select(Application).where(Application.id == application_id))
+        ).scalar_one_or_none()
+        if not app:
+            return {"error": "application_not_found"}
+
+        chunks = await self._ensure_cv_chunks(db, application_id)
+        if not chunks:
+            return {"error": "cv_not_analyzed"}
+        if not question:
+            return {"answer": "Posez une question sur ce CV.", "confidence": 0.0, "passages": []}
+
+        qv = embedding_service.embed(question)
+        scored = sorted(
+            ((embedding_service.cosine(qv, c["vector"]), c) for c in chunks),
+            key=lambda t: t[0], reverse=True,
+        )
+        best_score, best = scored[0]
+
+        candidate = (
+            await db.execute(select(Candidate).where(Candidate.id == app.candidate_id))
+        ).scalar_one_or_none()
+
+        if best_score < MIN_CONFIDENCE:
+            return {
+                "answer": "Le CV ne semble pas contenir d'information sur ce point.",
+                "confidence": round(best_score * 100, 1),
+                "passages": [],
+                "candidate_name": candidate.full_name if candidate else None,
+            }
+        return {
+            "answer": best["content"],
+            "confidence": round(best_score * 100, 1),
+            "passages": [
+                {"content": c["content"], "score": round(s * 100, 1)}
+                for s, c in scored[:top_k] if s >= MIN_CONFIDENCE
+            ],
+            "candidate_name": candidate.full_name if candidate else None,
+        }
+
+    # ── CRUD base de connaissances ────────────────────────────────────────────
+
+    async def list_knowledge(self, db: AsyncSession) -> list[KnowledgeEntry]:
+        return list((await db.execute(
+            select(KnowledgeEntry).order_by(KnowledgeEntry.category, KnowledgeEntry.title)
+        )).scalars().all())
+
+    async def add_knowledge(self, db: AsyncSession, *, title: str, content: str,
+                            category: str, source: Optional[str] = None) -> KnowledgeEntry:
+        entry = KnowledgeEntry(
+            title=title, content=content, category=category, source=source,
+            vector_json=embedding_service.embed(f"{title}\n{content}"),
+            model=embedding_service.backend,
+        )
+        db.add(entry)
+        await db.flush()
+        self._invalidate_caches()
+        return entry
+
+    async def delete_knowledge(self, db: AsyncSession, entry_id: UUID) -> bool:
+        entry = (
+            await db.execute(select(KnowledgeEntry).where(KnowledgeEntry.id == entry_id))
+        ).scalar_one_or_none()
+        if not entry:
+            return False
+        await db.delete(entry)
+        await db.flush()
+        self._invalidate_caches()
+        return True
+
+    async def stats(self, db: AsyncSession) -> dict:
+        kb = (await db.execute(select(func.count(KnowledgeEntry.id)))).scalar_one()
+        chunks = (await db.execute(select(func.count(CVChunk.id)))).scalar_one()
+        return {
+            "backend": embedding_service.backend,
+            "knowledge_entries": kb,
+            "cached_cv_chunks": chunks,
+            "answer_cache_size": len(self._answer_cache),
+            "kb_cache_loaded": self._kb_cache is not None,
+            "mode": "extractif (sans LLM) — zéro hallucination",
+        }
+
+    # ── Cache de réponses ─────────────────────────────────────────────────────
+
+    def _answer_cache_key(self, question: str) -> str:
+        norm = re.sub(r"\s+", " ", question.lower().strip())
+        raw = f"{embedding_service.backend}::{norm}"
+        return hashlib.md5(raw.encode()).hexdigest()
+
+    def _store_answer(self, key: str, result: dict) -> None:
+        self._answer_cache[key] = dict(result)
+        self._answer_cache.move_to_end(key)
+        while len(self._answer_cache) > self._answer_cache_max:
+            self._answer_cache.popitem(last=False)
+
+
+cag_service = CAGService()

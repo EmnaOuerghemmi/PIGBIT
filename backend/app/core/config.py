@@ -41,6 +41,13 @@ class Settings(BaseSettings):
     EMAILS_FROM_EMAIL: str = "noreply@piqbit.tn"
     EMAILS_FROM_NAME: str = "PIQBIT"
 
+    # Société (en-tête des contrats de travail)
+    COMPANY_NAME: str = "PIQBIT Lab"
+    COMPANY_MANAGER: str = "Mohamed Derbali"       # le gérant
+    COMPANY_TAX_ID: str = ""                        # matricule fiscal (optionnel)
+    COMPANY_ADDRESS: str = "Tunis, Tunisie"
+    COMPANY_CITY: str = "Tunis"
+
     # Anthropic / Claude (optional — features degrade gracefully if unset)
     ANTHROPIC_API_KEY: str = ""
     ANTHROPIC_MODEL: str = "claude-sonnet-4-6"
@@ -49,6 +56,12 @@ class Settings(BaseSettings):
     GOOGLE_CLIENT_ID: str = ""
     GOOGLE_CLIENT_SECRET: str = ""
     GOOGLE_REDIRECT_URI: str = "http://localhost:3000/api/v1/auth/google/callback"
+
+    # Embeddings / matching sémantique
+    # Backend : "auto" (sentence-transformers si dispo, sinon hash), "model", "hash".
+    EMBEDDINGS_BACKEND: str = "auto"
+    EMBEDDING_MODEL_NAME: str = "sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2"
+    EMBEDDING_DIM: int = 384
 
     # Google Calendar (optional — interview sync degrades gracefully if unset)
     # Path to the service-account JSON key downloaded from Google Cloud Console.

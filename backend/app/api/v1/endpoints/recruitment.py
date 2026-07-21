@@ -60,6 +60,14 @@ async def create_job(
     await db.commit()
     await db.refresh(job)
 
+    # Indexation sémantique de l'offre (best-effort).
+    try:
+        from app.services.semantic_service import semantic_service
+        await semantic_service.index_job(db, job)
+        await db.commit()
+    except Exception as embed_exc:  # pragma: no cover - defensive
+        logger.warning(f"Semantic indexing failed for job {job.id}: {embed_exc}")
+
     await notification_service.notify_admins(
         db, actor=current_user, type="JOB_CREATED",
         title="Nouvelle offre publiée",
@@ -80,6 +88,13 @@ async def update_job(
     job = await recruitment_service.update_job_offer(db, job_id, body)
     await db.commit()
     await db.refresh(job)
+    # Le contenu de l'offre a changé → réindexer son embedding (best-effort).
+    try:
+        from app.services.semantic_service import semantic_service
+        await semantic_service.index_job(db, job)
+        await db.commit()
+    except Exception as embed_exc:  # pragma: no cover - defensive
+        logger.warning(f"Semantic reindexing failed for job {job_id}: {embed_exc}")
     return job
 
 

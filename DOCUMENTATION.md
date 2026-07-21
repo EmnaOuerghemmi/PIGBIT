@@ -518,7 +518,24 @@ mathématique de pagination (3 items / page_size 2 → 2 pages sans doublon), RB
 ### 14.4 Tests
 `tests/test_interview_calendar.py` : statut Google non configuré (dégradation),
 sync → 503 sans credentials, téléchargement ICS (200 `text/calendar`, contenu
-RFC 5545) et 409 si non confirmé, colonne `google_event_id`.
+RFC 5545) et 409 si non confirmé, colonne `google_event_id`. Les tests de
+dégradation (`test_google_status_unconfigured`,
+`test_sync_google_503_when_unconfigured`) sont **skip automatiquement** si de
+vrais credentials sont configurés dans l'environnement courant (`.env`) —
+ils testent le chemin "non configuré", inapplicable une fois l'intégration
+activée.
+
+### 14.5 Bug corrigé — resync manuelle utilisait la mauvaise session DB
+`POST /interview/invitations/{id}/sync-google` appelait `_sync_confirmed_to_google`
+qui ouvrait **toujours** sa propre session (`AsyncSessionLocal`, la vraie base),
+au lieu de réutiliser la session de la requête — correct pour l'appel en
+`BackgroundTask` après confirmation candidat (le scope de requête peut déjà
+être fermé), mais incorrect pour l'appel synchrone du endpoint de resync
+manuelle, où la session de la requête doit être réutilisée. Corrigé :
+`_sync_confirmed_to_google(invitation_id, db=None)` accepte maintenant une
+session optionnelle — réutilisée si fournie (resync manuelle), sinon une
+session dédiée est ouverte (background task). Régression détectée par la
+suite de tests après activation des vrais credentials Google Calendar.
 
 ---
 
@@ -569,3 +586,177 @@ destinataire — 404 si on tente de lire la notification d'un autre user),
 triggers métier (offre créée par RH → notifie l'admin ; offre créée par un
 admin → aucune auto-notification ; changement de statut de candidature →
 notifie le candidat ET les admins).
+
+---
+
+## 16. Matching sémantique — Embeddings + pgvector (V1.6)
+
+### 16.1 Principe
+Chaque **offre** et chaque **CV analysé** est encodé en vecteur de 384
+dimensions (embedding). Deux textes proches par le **sens** ont des vecteurs
+proches (similarité cosinus), même sans mots communs — un profil Vue.js
+matche une offre React, ce que le scoring par mots-clés exacts ratait.
+
+### 16.2 Architecture
+| Composant | Rôle |
+|---|---|
+| `app/services/embedding_service.py` | encodage : backend **sentence-transformers** (`paraphrase-multilingual-MiniLM-L12-v2`, multilingue FR, CPU, chargé paresseusement) OU fallback **hash-v1** (hashing trick déterministe hors-ligne). `EMBEDDINGS_BACKEND=auto\|model\|hash` |
+| `app/models/embedding.py` | table `embeddings` : vecteur en **JSON** (portable SQLite/PG) + identifiant du backend producteur (deux vecteurs ne sont comparés que s'ils viennent du même modèle) |
+| `app/services/semantic_service.py` | indexation (upsert), matching offre→CVs, candidats similaires. Recherche via **pgvector** (`ORDER BY vec <=> …`, index HNSW) si l'extension est active, sinon **cosinus en Python** — même résultat, moins scalable |
+| micro-migration (main.py) | au boot : `CREATE EXTENSION vector` + colonne `vec vector(384)` + index HNSW, best-effort ; sinon fallback Python loggé |
+
+**Indexation automatique** : à l'analyse d'un CV (`scoring_agent`) et à la
+création/mise à jour d'une offre. Rattrapage : `POST /semantic/reindex`.
+
+### 16.3 API — `/semantic` (RH/Admin)
+`GET /status` (backend effectif, pgvector, volumes indexés) ·
+`POST /reindex` · `GET /jobs/{id}/match?limit=` ·
+`GET /applications/{id}/similar?limit=`
+
+### 16.4 Frontend (`/admin/recruitment`)
+Nouvelle section **« Matching sémantique »** sous le classement IA :
+- badge indiquant le backend (« modèle neuronal » violet / « mode lexical
+  (fallback) ») et si pgvector est actif ;
+- bouton **« 🧠 Matching sémantique »** → liste classée avec **barre de
+  similarité** (0-100 %), compétences, et le score mots-clés existant en
+  regard (comparaison des deux approches) ;
+- bouton **« 👥 Similaires »** par candidat → panneau des profils les plus
+  proches dans **toute la CVthèque**, toutes offres confondues (sourcing).
+Service : `core/services/semantic.service.ts`.
+
+### 16.5 Activation du modèle neuronal & pgvector
+- `pip install sentence-transformers` (fait) — le modèle (~470 Mo) se
+  télécharge au premier appel puis est mis en cache HuggingFace local.
+- pgvector : `docker-compose.yml` passe à l'image **`pgvector/pgvector:pg16`**.
+  Si le volume existant (initialisé par postgres:16-alpine) pose problème :
+  `docker compose down -v && docker compose up -d` (base de dev re-seedée au
+  boot). Sans pgvector, tout fonctionne en fallback Python.
+- Tests : backend **hash** forcé dans `conftest.py` (déterministe, aucun
+  téléchargement pendant pytest).
+
+### 16.6 Tests
+`tests/test_semantic.py` (8 tests) : vecteur normalisé/déterministe,
+discrimination thématique, vecteur nul sur texte vide, upsert sans doublon,
+**le bon profil sort premier** (frontend React > frontend Vue > comptable sur
+une offre React), exclusion de soi-même dans « similaires », API bout-en-bout
+(status, match, similar, reindex, 404, RBAC 401).
+
+---
+
+## 17. Assistant CAG — extractif, sans LLM (V1.7)
+
+### 17.1 Principe (Cache-Augmented Generation, sans Claude)
+Le « G » (génération) est **extractif** : le moteur ne génère aucun texte, il
+**extrait le passage source le plus pertinent** et le restitue avec sa citation
+→ **zéro hallucination possible**. Aucune dépendance à un LLM externe.
+
+- **Cache d'embeddings** : le corpus (base de connaissances + passages de CV)
+  est embeddé **une seule fois** (colonne `vector_json` + cache mémoire). À la
+  question, seule la question est embeddée puis comparée par cosinus (corpus
+  petit → instantané, fonctionne sur SQLite).
+- **Cache de réponses** : question → réponse en LRU mémoire (questions
+  répétées instantanées, `from_cache=true`).
+- Moteur d'embedding = `embedding_service` (sentence-transformers si dispo,
+  sinon hash déterministe) — le même que le matching sémantique.
+
+### 17.2 Backend
+| Composant | Rôle |
+|---|---|
+| `app/models/knowledge.py` | `knowledge_entries` (FAQ RH, vecteur caché) + `cv_chunks` (passages de CV cachés) |
+| `app/services/cag_service.py` | seed FAQ, indexation (cache), `ask()` (KB extractif + sources), `ask_cv()` (passage exact du CV), CRUD, cache de réponses LRU |
+| `app/api/v1/endpoints/cag.py` | `GET /cag/status`, `POST /cag/reindex`, `POST /cag/seed`, `POST /cag/ask` (auth), `POST /cag/cv/{app_id}/ask` (RH), `GET/POST/DELETE /cag/knowledge` (RH) |
+
+Seed automatique de la FAQ + indexation au démarrage (`main.py`).
+
+### 17.3 Frontend
+Page **`/admin/assistant`** (sidebar « Assistant ») :
+- **Chat** : question → réponse extraite + **badge de confiance** + **puces de
+  sources citées** + tag « ⚡ depuis le cache » ; suggestions de départ.
+- **Base de connaissances** : ajout/suppression d'entrées (embeddées et
+  cachées automatiquement), catégorie, indicateur « indexé ».
+- Bandeau de statut : backend d'embedding, nombre d'entrées, taille du cache.
+- Service : `core/services/cag.service.ts`.
+
+> Le Q&A sur CV (`/cag/cv/{app_id}/ask`) renvoie le **passage exact** du CV le
+> plus pertinent — exposé côté API, branchable sur la fiche candidat.
+
+### 17.4 Tests
+`tests/test_cag.py` (8 tests) : découpage en passages, seed/index idempotents,
+**réponse ancrée** (l'answer est exactement le contenu d'une entrée existante,
+pas une génération), sources renvoyées, **cache-hit** au 2e appel, **Q&A CV**
+(la réponse est un sous-texte exact du CV + chunks mis en cache une seule fois),
+API + RBAC (401/404/409).
+
+---
+
+## 18. Gestion de contrat + signature électronique (V1.8)
+
+### 18.1 Le maillon manquant : recrutement → RH
+Ferme la boucle du pipeline. Après une candidature **ACCEPTED**, un contrat est
+généré, signé électroniquement par le candidat, et à la signature un **employé
+est créé automatiquement** (la candidature passe `HIRED`, le module
+Employés/Budget/Carrière devient la destination naturelle du recrutement).
+
+### 18.2 Cycle de vie
+```
+ACCEPTED ─► DRAFT ─► SENT ─► SIGNED ─► ACTIVE   (+ DECLINED / EXPIRED)
+           (RH       (lien    (candidat  (employé créé,
+            complète) public)  signe)     candidature HIRED)
+```
+
+### 18.3 Signature électronique — professionnelle & gratuite (sans API payante)
+Signature **auto-hébergée** :
+- Lien public à token (comme la confirmation d'entretien), **sans compte**.
+- **Signature manuscrite** dessinée sur un canvas HTML5 → PNG embarqué dans le PDF.
+- **Piste d'audit** : nom du signataire, date UTC, IP, user-agent, **empreinte
+  SHA-256 des termes** (scelle le contenu), **identifiant de certificat**.
+- **Certificat de signature électronique** (page dédiée du PDF, façon preuve de
+  complétion) — le rendu « pro » type DocuSign, à coût nul.
+- Consentement explicite obligatoire (case à cocher).
+
+### 18.4 Backend
+| Composant | Rôle |
+|---|---|
+| `app/models/contract.py` | `contracts` (termes, statut, token, audit signature, `employee_id`) |
+| `app/services/contract_service.py` | cycle de vie complet, préremplissage salaire (négociation → offre), `sign()` + **activation** (création employé, `HIRED`), `decline()`, empreinte des termes |
+| `app/services/contract_pdf.py` | PDF du contrat (parties, articles) + **certificat de signature** (reportlab, hors-ligne) |
+| `app/api/v1/endpoints/contracts.py` | RH : from-application, PATCH, send, PDF, list, stats, delete. Public : `GET/POST /contracts/sign/{token}`, `POST /contracts/decline/{token}` |
+
+Notifications à chaque étape (candidat + RH créateur).
+
+### 18.5 Frontend
+- **`/admin/contracts`** (sidebar « Contrats ») : KPIs, liste avec statuts,
+  **édition inline** du brouillon, **envoi** (génère le lien), **copier le
+  lien**, **téléchargement PDF**.
+- Bouton **« Contrat »** sur la page Candidatures pour un candidat accepté →
+  crée le brouillon.
+- **`/contract/sign/:token`** (page publique, sans login) : récap des termes,
+  **canvas de signature manuscrite**, consentement, signature ou refus, écran
+  de confirmation avec l'identifiant de certificat. Design « Aurora Emerald ».
+- Service : `core/services/contract.service.ts`.
+
+### 18.6 Tests
+`tests/test_contracts.py` (4 tests) : **cycle de vie complet**
+(DRAFT→SENT→SIGNED→ACTIVE), préremplissage salaire, doublon 409, édition,
+PDF (brouillon + signé), vue publique, **signature → employé créé +
+candidature HIRED + empreinte SHA-256 + certificat**, re-signature 409,
+consentement requis (400), refus (410 après), stats + RBAC (401), identité
+salarié (CIN) conservée.
+
+### 18.7 Contrat de travail tunisien complet (V1.8.1)
+Le PDF (`app/services/contract_pdf.py`) rend un **vrai contrat de droit
+tunisien** : soussignés (employeur = société + gérant / employé + date de
+naissance + CIN + adresse), **17 articles** (principes, déclarations, fonctions,
+durée + période d'essai, obligations, rémunération, horaire 40 h + jours
+fériés tunisiens, congés 22 j, biens, résiliation, fidélité, non-concurrence,
+litige → tribunaux de Tunis…), mention **« Lu et approuvé »**, blocs de
+signature, puis le **certificat de signature électronique**.
+
+- En-tête société **configurable** (`config.py`) : `COMPANY_NAME` (« PIQBIT
+  Lab »), `COMPANY_MANAGER` (« Mohamed Derbali »), `COMPANY_TAX_ID`,
+  `COMPANY_ADDRESS`, `COMPANY_CITY`.
+- Nouveaux champs identité sur le contrat (`employee_birth_date`,
+  `employee_cin`, `employee_cin_issue_date`, `employee_address`) — remplis par
+  le RH dans le formulaire d'édition du brouillon (`/admin/contracts`),
+  scellés dans l'empreinte SHA-256. Micro-migration `ALTER TABLE contracts`
+  au boot.

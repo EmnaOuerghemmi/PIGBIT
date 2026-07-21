@@ -113,7 +113,14 @@ async def test_google_status_requires_auth(client: AsyncClient):
     assert resp.status_code == 401
 
 
+from app.integrations.google_calendar import google_calendar_client
+
+_GOOGLE_CONFIGURED = google_calendar_client.available
+_SKIP_REASON = "Google Calendar est configuré dans cet environnement (.env) — test de dégradation non applicable"
+
+
 @pytest.mark.asyncio
+@pytest.mark.skipif(_GOOGLE_CONFIGURED, reason=_SKIP_REASON)
 async def test_google_status_unconfigured(client: AsyncClient, db: AsyncSession):
     token = await _make_admin_token(client, db)
     resp = await client.get("/api/v1/interview/google-status", headers=_auth(token))
@@ -125,6 +132,7 @@ async def test_google_status_unconfigured(client: AsyncClient, db: AsyncSession)
 
 
 @pytest.mark.asyncio
+@pytest.mark.skipif(_GOOGLE_CONFIGURED, reason=_SKIP_REASON)
 async def test_sync_google_503_when_unconfigured(client: AsyncClient, db: AsyncSession):
     token = await _make_admin_token(client, db)
     invitation = await _make_confirmed_invitation(db)
@@ -133,6 +141,32 @@ async def test_sync_google_503_when_unconfigured(client: AsyncClient, db: AsyncS
     )
     assert resp.status_code == 503
     assert "GOOGLE_CALENDAR" in resp.json()["detail"]
+
+
+@pytest.mark.asyncio
+@pytest.mark.skipif(not _GOOGLE_CONFIGURED, reason="Google Calendar non configuré dans cet environnement")
+async def test_sync_google_reuses_request_session(client: AsyncClient, db: AsyncSession, monkeypatch):
+    """
+    Non-régression : l'endpoint de resync manuel doit réutiliser la session
+    de la requête (celle qui voit l'invitation de test) plutôt que d'ouvrir
+    une session séparée sur la vraie base — sinon l'invitation de test y est
+    introuvable (404 interne) et l'appel échoue en 502.
+
+    L'appel réseau réel à Google est mocké : on ne veut pas créer un vrai
+    événement dans l'agenda pour un candidat de test.
+    """
+    monkeypatch.setattr(
+        google_calendar_client, "create_interview_event", lambda **kwargs: "evt_test_123"
+    )
+    token = await _make_admin_token(client, db)
+    invitation = await _make_confirmed_invitation(db)
+    resp = await client.post(
+        f"/api/v1/interview/invitations/{invitation.id}/sync-google", headers=_auth(token)
+    )
+    assert resp.status_code == 200, resp.text
+    data = resp.json()
+    assert data["synced"] is True
+    assert data["google_event_id"] == "evt_test_123"
 
 
 # ── ICS endpoint ──────────────────────────────────────────────────────────────

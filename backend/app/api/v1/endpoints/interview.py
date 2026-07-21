@@ -43,44 +43,56 @@ logger = logging.getLogger(__name__)
 router = APIRouter()
 
 
-async def _sync_confirmed_to_google(invitation_id: UUID) -> str | None:
+async def _sync_confirmed_to_google(invitation_id: UUID, db: AsyncSession | None = None) -> str | None:
     """
     Pousse l'entretien confirmé vers Google Calendar (si configuré) et stocke
     l'`eventId` sur l'invitation. Best-effort : ne lève jamais.
-    Conçu pour tourner en BackgroundTask avec sa propre session DB.
+
+    - Appelée en `BackgroundTask` (après confirmation candidat) : pas de
+      session de requête disponible → on en ouvre une dédiée.
+    - Appelée directement par l'endpoint de resync manuel : on réutilise la
+      session de la requête (`db`) pour rester cohérent avec les autres
+      lectures/écritures de cet appel (et pour que les tests avec DB de test
+      injectée fonctionnent correctement).
     """
     import asyncio
-    from app.db.session import AsyncSessionLocal
     from app.integrations.google_calendar import google_calendar_client
 
     if not google_calendar_client.available:
         return None
-    try:
-        async with AsyncSessionLocal() as db:
-            inv, app, candidate, user, job = await interview_service.get_invitation_context(
-                db, invitation_id
-            )
-            slot = inv.confirmed_slot
-            if not slot or inv.google_event_id:
-                return inv.google_event_id
 
-            # httpx sync + refresh de token sync → thread pour ne pas bloquer la loop.
-            event_id = await asyncio.to_thread(
-                google_calendar_client.create_interview_event,
-                summary=f"Entretien PIQBIT — {candidate.full_name} ({job.title})",
-                description=(
-                    f"Candidat : {candidate.full_name} <{user.email}>\n"
-                    f"Poste : {job.title}\n"
-                    f"Invitation : {public_url_for(inv.token)}"
-                ),
-                start_at=slot.start_at,
-                end_at=slot.end_at,
-                attendee_email=user.email,
-            )
-            if event_id:
-                inv.google_event_id = event_id
-                await db.commit()
-            return event_id
+    async def _run(session: AsyncSession) -> str | None:
+        inv, app, candidate, user, job = await interview_service.get_invitation_context(
+            session, invitation_id
+        )
+        slot = inv.confirmed_slot
+        if not slot or inv.google_event_id:
+            return inv.google_event_id
+
+        # httpx sync + refresh de token sync → thread pour ne pas bloquer la loop.
+        event_id = await asyncio.to_thread(
+            google_calendar_client.create_interview_event,
+            summary=f"Entretien PIQBIT — {candidate.full_name} ({job.title})",
+            description=(
+                f"Candidat : {candidate.full_name} <{user.email}>\n"
+                f"Poste : {job.title}\n"
+                f"Invitation : {public_url_for(inv.token)}"
+            ),
+            start_at=slot.start_at,
+            end_at=slot.end_at,
+            attendee_email=user.email,
+        )
+        if event_id:
+            inv.google_event_id = event_id
+            await session.commit()
+        return event_id
+
+    try:
+        if db is not None:
+            return await _run(db)
+        from app.db.session import AsyncSessionLocal
+        async with AsyncSessionLocal() as session:
+            return await _run(session)
     except Exception as exc:  # pragma: no cover - defensive
         logger.warning(f"Google Calendar sync failed for invitation {invitation_id}: {exc}")
         return None
@@ -452,7 +464,7 @@ async def sync_invitation_to_google(
     if inv.google_event_id:
         return {"synced": True, "google_event_id": inv.google_event_id, "already": True}
 
-    event_id = await _sync_confirmed_to_google(invitation_id)
+    event_id = await _sync_confirmed_to_google(invitation_id, db)
     if not event_id:
         raise HTTPException(
             status_code=status.HTTP_502_BAD_GATEWAY,

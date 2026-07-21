@@ -87,6 +87,13 @@ class ScoringAgent:
 
         await db.flush()
 
+        # Indexation sémantique du CV (embeddings) — best-effort.
+        try:
+            from app.services.semantic_service import semantic_service
+            await semantic_service.index_cv(db, analysis)
+        except Exception as embed_exc:  # pragma: no cover - defensive
+            logger.warning(f"Semantic indexing failed for application {application_id}: {embed_exc}")
+
         score = await scoring_service.compute_and_store_score(
             db,
             application_id,

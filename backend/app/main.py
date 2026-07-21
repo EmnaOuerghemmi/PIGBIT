@@ -9,7 +9,7 @@ from app.core.config import settings
 from app.db.session import engine, AsyncSessionLocal
 from app.db.base import Base
 from app.db.init_db import init_superadmin
-from app.models import user, recruitment, scoring, interview, career, report, negotiation, budget, employee, notification  # noqa: F401
+from app.models import user, recruitment, scoring, interview, career, report, negotiation, budget, employee, notification, embedding, knowledge, contract  # noqa: F401
 
 SUPERADMIN_EMAIL = "emna.ouerghemmi@esprit.tn"
 SUPERADMIN_USERNAME = "emna_admin"
@@ -45,9 +45,44 @@ async def lifespan(app: FastAPI):
                 "ALTER TABLE interview_invitations "
                 "ADD COLUMN IF NOT EXISTS google_event_id VARCHAR(255)"
             ))
+            # Champs identité salarié sur les contrats (ajoutés a posteriori).
+            for col, ddl in [
+                ("employee_birth_date", "TIMESTAMPTZ"),
+                ("employee_cin", "VARCHAR(30)"),
+                ("employee_cin_issue_date", "TIMESTAMPTZ"),
+                ("employee_address", "VARCHAR(300)"),
+            ]:
+                await conn.execute(text(
+                    f"ALTER TABLE contracts ADD COLUMN IF NOT EXISTS {col} {ddl}"
+                ))
     except Exception as _mig_exc:  # pragma: no cover - sqlite/tests n'en ont pas besoin
         import logging
-        logging.getLogger(__name__).debug(f"google_event_id migration skipped: {_mig_exc}")
+        logging.getLogger(__name__).debug(f"contract identity migration skipped: {_mig_exc}")
+    # Micro-migration pgvector : active la recherche vectorielle native si
+    # l'extension est disponible (image pgvector/pgvector, ou installée à la
+    # main). Sinon le matching sémantique fonctionne en fallback Python.
+    try:
+        from sqlalchemy import text
+        from app.core.config import settings as _settings
+        from app.services.semantic_service import semantic_service
+        dim = _settings.EMBEDDING_DIM
+        async with engine.begin() as conn:
+            await conn.execute(text("CREATE EXTENSION IF NOT EXISTS vector"))
+            await conn.execute(text(
+                f"ALTER TABLE embeddings ADD COLUMN IF NOT EXISTS vec vector({dim})"
+            ))
+            await conn.execute(text(
+                "CREATE INDEX IF NOT EXISTS ix_embeddings_vec ON embeddings "
+                "USING hnsw (vec vector_cosine_ops)"
+            ))
+        semantic_service.pgvector_enabled = True
+        import logging
+        logging.getLogger(__name__).info("pgvector enabled — semantic search uses native vector index")
+    except Exception as _vec_exc:  # pragma: no cover - extension absente → fallback Python
+        import logging
+        logging.getLogger(__name__).info(
+            f"pgvector unavailable — semantic search falls back to Python cosine ({_vec_exc})"
+        )
     async with AsyncSessionLocal() as db:
         await init_superadmin(db, SUPERADMIN_EMAIL, SUPERADMIN_USERNAME, SUPERADMIN_PASSWORD)
     # Seed de démo Budget/Employés (idempotent) pour que le backoffice affiche
@@ -55,9 +90,14 @@ async def lifespan(app: FastAPI):
     try:
         from app.services.budget_service import budget_service
         from app.services.employee_service import employee_service
+        from app.services.cag_service import cag_service
         async with AsyncSessionLocal() as db:
             await employee_service.seed_demo_data(db)
             await budget_service.seed_demo_data(db)
+            # Base de connaissances CAG : seed de la FAQ uniquement. L'indexation
+            # (cache d'embeddings) est PARESSEUSE — faite au 1er /cag/ask — pour
+            # ne pas charger le modèle neuronal (~470 Mo) au démarrage.
+            await cag_service.seed_default_kb(db)
             await db.commit()
     except Exception as _seed_exc:  # pragma: no cover - demo data must never block boot
         import logging
@@ -87,6 +127,8 @@ app.add_middleware(
         "http://127.0.0.1:4200",
         "http://127.0.0.1:3000",
     ],
+    # Dev local : tolère tout port localhost (previews, second ng serve).
+    allow_origin_regex=r"http://(localhost|127\.0\.0\.1):\d+",
     allow_credentials=True,
     allow_methods=["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
     allow_headers=["*"],

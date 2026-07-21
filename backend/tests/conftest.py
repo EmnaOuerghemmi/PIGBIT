@@ -1,3 +1,10 @@
+import os
+
+# Backend d'embedding déterministe et hors-ligne pour les tests : le hash
+# fallback évite le téléchargement du modèle sentence-transformers (~470 Mo)
+# et rend les similarités reproductibles. À poser AVANT l'import de l'app.
+os.environ.setdefault("EMBEDDINGS_BACKEND", "hash")
+
 import pytest
 import pytest_asyncio
 from httpx import AsyncClient, ASGITransport
