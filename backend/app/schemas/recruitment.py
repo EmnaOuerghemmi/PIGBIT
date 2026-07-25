@@ -76,6 +76,7 @@ class ApplicationUpdate(BaseModel):
 class ApplicationResponse(BaseModel):
     id: UUID
     candidate_id: UUID
+    candidate_name: str | None = None
     job_offer_id: UUID
     cv_file_path: str
     status: str

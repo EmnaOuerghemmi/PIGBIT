@@ -111,7 +111,11 @@ class RecruitmentService:
         return app
 
     async def get_applications(self, db: AsyncSession, job_id: UUID = None, page: int = 1, size: int = 20) -> tuple[int, list[Application]]:
-        query = select(Application).order_by(Application.created_at.desc())
+        query = (
+            select(Application)
+            .options(selectinload(Application.candidate))
+            .order_by(Application.created_at.desc())
+        )
         if job_id:
             query = query.where(Application.job_offer_id == job_id)
 
@@ -121,7 +125,12 @@ class RecruitmentService:
         total = await db.scalar(count_query)
 
         result = await db.execute(query.limit(size).offset((page - 1) * size))
-        return total, result.scalars().all()
+        apps = result.scalars().all()
+        # Champ transitoire (non mappé) consommé par ApplicationResponse.candidate_name
+        # via from_attributes, pour afficher le nom du candidat au lieu de son UUID.
+        for app in apps:
+            app.candidate_name = app.candidate.full_name if app.candidate else None
+        return total, apps
 
     async def get_my_applications(self, db: AsyncSession, user_id: UUID) -> list[dict]:
         """
