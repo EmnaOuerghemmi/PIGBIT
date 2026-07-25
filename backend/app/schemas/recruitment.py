@@ -78,6 +78,7 @@ class ApplicationResponse(BaseModel):
     candidate_id: UUID
     candidate_name: str | None = None
     job_offer_id: UUID
+    job_offer_title: str | None = None
     cv_file_path: str
     status: str
     created_at: datetime
