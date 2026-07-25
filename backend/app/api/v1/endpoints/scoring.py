@@ -232,11 +232,20 @@ async def get_job_ranking(
             ):
                 inv_by_app[inv.application_id] = inv
 
+        # Bulk-fetch candidate names so the UI can show "Prénom Nom" instead
+        # of the raw candidate_id.
+        candidate_ids = [s.candidate_id for s in scores]
+        candidates_result = await db.execute(
+            select(Candidate).where(Candidate.id.in_(candidate_ids))
+        )
+        name_by_candidate = {c.id: c.full_name for c in candidates_result.scalars().all()}
+
         ranking = []
         for score in scores:
             inv = inv_by_app.get(score.application_id)
             ranking.append(CandidateRankingItem(
                 candidate_id=score.candidate_id,
+                candidate_name=name_by_candidate.get(score.candidate_id),
                 application_id=score.application_id,
                 total_score=score.total_score,
                 rank=score.rank,

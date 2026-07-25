@@ -51,6 +51,7 @@ class CandidateScoreResponse(BaseModel):
 
 class CandidateRankingItem(BaseModel):
     candidate_id: UUID
+    candidate_name: str | None = None
     application_id: UUID
     total_score: float = Field(..., ge=0, le=100)
     rank: int | None
