@@ -178,3 +178,25 @@ async def test_2fa_invalid_code_rejected(client: AsyncClient):
     await client.post("/api/v1/auth/2fa/setup", headers=headers)
     enable = await client.post("/api/v1/auth/2fa/enable", headers=headers, json={"code": "000000"})
     assert enable.status_code == 400
+
+
+@pytest.mark.asyncio
+async def test_forgot_password_is_rate_limited(client: AsyncClient):
+    """
+    /forgot-password est plafonné à 3 appels / 10 min par IP : sans quoi la
+    route permet d'énumérer les comptes et de bombarder une boîte mail.
+
+    La 4e tentative doit être refusée avec un en-tête Retry-After exploitable
+    par le client. Les compteurs sont purgés entre les tests par la fixture
+    `_fresh_redis`.
+    """
+    payload = {"email": "inconnu@example.com"}
+
+    for _ in range(3):
+        allowed = await client.post("/api/v1/auth/forgot-password", json=payload)
+        assert allowed.status_code == 200
+
+    blocked = await client.post("/api/v1/auth/forgot-password", json=payload)
+    assert blocked.status_code == 429
+    assert "Retry-After" in blocked.headers
+    assert int(blocked.headers["Retry-After"]) > 0

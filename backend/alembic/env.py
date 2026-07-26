@@ -33,6 +33,27 @@ def get_sync_url() -> str:
     return url.replace("+asyncpg", "+psycopg2").replace("+aiosqlite", "")
 
 
+def include_object(obj, name, type_, reflected, compare_to):
+    """
+    Filtre les objets que l'autogenerate doit ignorer.
+
+    La colonne `embeddings.vec` et son index HNSW sont créés par la migration
+    pgvector en SQL brut : ils n'existent pas dans les modèles SQLAlchemy.
+    Sans ce filtre, chaque `alembic revision --autogenerate` les voit comme
+    « présents en base, absents du code » et génère leur SUPPRESSION — la
+    prochaine migration détruirait donc la recherche vectorielle.
+
+    Le type `vector` n'étant pas connu de SQLAlchemy, on ne peut pas le
+    déclarer dans les modèles sans dépendre du paquet `pgvector` côté Python ;
+    l'exclusion explicite est la solution la plus simple et la plus lisible.
+    """
+    if type_ == "column" and name == "vec" and obj.table.name == "embeddings":
+        return False
+    if type_ == "index" and name == "ix_embeddings_vec":
+        return False
+    return True
+
+
 def run_migrations_offline() -> None:
     """Run migrations in 'offline' mode."""
     context.configure(
@@ -42,6 +63,7 @@ def run_migrations_offline() -> None:
         dialect_opts={"paramstyle": "named"},
         compare_type=True,
         compare_server_default=True,
+        include_object=include_object,
     )
 
     with context.begin_transaction():
@@ -67,6 +89,7 @@ def run_migrations_online() -> None:
             # que l'autogenerate ignore silencieusement sinon.
             compare_type=True,
             compare_server_default=True,
+            include_object=include_object,
         )
 
         with context.begin_transaction():

@@ -33,15 +33,19 @@ async def _fresh_redis():
     test tourne dans sa propre loop, on repart d'un client neuf par test
     (sinon : « Event loop is closed » dès le 2e login de la session).
 
-    On purge aussi les compteurs anti-bruteforce (`login_attempts:*`) : les
-    tests de mot de passe erroné les incrémentent dans le vrai Redis (TTL
-    15 min) et pollueraient sinon les logins des tests suivants (429).
+    On purge aussi les compteurs de limitation, qui vivent dans le VRAI Redis
+    avec des TTL longs et fuiteraient donc d'une exécution de tests à l'autre :
+      - `login_attempts:*` : anti-bruteforce du login (TTL 15 min)
+      - `ratelimit:*`      : limitation de register / forgot-password / jetons
+                             (TTL jusqu'à 1 h). Sans cette purge, une poignée
+                             de tests qui enregistrent un compte épuisent le
+                             quota (10/h) et tous les suivants reçoivent 429.
     """
     from app.cache import redis_client
     redis_client._redis = None
     try:
         r = await redis_client.get_redis()
-        keys = await r.keys("login_attempts:*")
+        keys = await r.keys("login_attempts:*") + await r.keys("ratelimit:*")
         if keys:
             await r.delete(*keys)
     except Exception:
