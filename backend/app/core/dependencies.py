@@ -13,6 +13,49 @@ from app.models.user import User, UserRole
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/v1/auth/login")
 
 
+def client_ip(request: Request) -> str:
+    """
+    IP réelle de l'appelant.
+
+    Derrière le reverse-proxy nginx, `request.client.host` vaut l'IP du
+    conteneur proxy : sans lecture de X-Forwarded-For, tous les utilisateurs
+    partageraient le même compteur de limitation.
+    """
+    forwarded = request.headers.get("X-Forwarded-For")
+    if forwarded:
+        return forwarded.split(",")[0].strip()
+    return request.client.host if request.client else "unknown"
+
+
+def rate_limit(scope: str, limit: int, window_seconds: int):
+    """
+    Fabrique une dépendance FastAPI limitant une route par IP.
+
+    Usage :
+        @router.post("/forgot-password",
+                     dependencies=[Depends(rate_limit("forgot_password", 3, 600))])
+
+    Renvoie 429 avec un en-tête `Retry-After` quand le quota est dépassé.
+    """
+    from app.cache.redis_client import hit_rate_limit
+
+    async def _dependency(request: Request) -> None:
+        allowed, retry_after = await hit_rate_limit(
+            scope, client_ip(request), limit, window_seconds
+        )
+        if not allowed:
+            raise HTTPException(
+                status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+                detail=(
+                    "Trop de tentatives. Réessayez dans "
+                    f"{max(retry_after // 60, 1)} minute(s)."
+                ),
+                headers={"Retry-After": str(retry_after)},
+            )
+
+    return _dependency
+
+
 async def get_current_user(
     token: Annotated[str, Depends(oauth2_scheme)],
     db: Annotated[AsyncSession, Depends(get_db)],

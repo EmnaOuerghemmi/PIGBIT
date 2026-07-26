@@ -26,9 +26,19 @@ class Settings(BaseSettings):
     # Bcrypt
     BCRYPT_ROUNDS: int = 12
 
-    # Brute-force
+    # Brute-force (/login : compteur par IP + verrouillage du compte en base)
     MAX_LOGIN_ATTEMPTS: int = 5
     LOCKOUT_MINUTES: int = 15
+
+    # Limitation des autres routes d'authentification non protégées par le
+    # mécanisme ci-dessus. Format : (nombre d'appels, fenêtre en secondes).
+    #   register        — freine la création massive de comptes
+    #   forgot-password — freine l'énumération d'e-mails et le mail-bombing
+    #   token           — freine le brute-force des jetons de vérification
+    #                     et de réinitialisation (reset-password, verify-email)
+    RATE_LIMIT_REGISTER: tuple[int, int] = (10, 3600)
+    RATE_LIMIT_FORGOT_PASSWORD: tuple[int, int] = (3, 600)
+    RATE_LIMIT_TOKEN: tuple[int, int] = (10, 600)
 
     # 2FA
     TOTP_ISSUER: str = "PIQBIT"

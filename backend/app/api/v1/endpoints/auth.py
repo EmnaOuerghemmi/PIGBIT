@@ -4,7 +4,8 @@ from fastapi import APIRouter, Depends, Request, status, HTTPException
 from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.dependencies import get_current_active_user
+from app.core.config import settings
+from app.core.dependencies import get_current_active_user, rate_limit
 from app.db.session import get_db
 from app.models.user import User
 from app.schemas.agent import (
@@ -44,7 +45,12 @@ async def login_with_google(
     return tokens
 
 
-@router.post("/register", response_model=UserResponse, status_code=status.HTTP_201_CREATED)
+@router.post(
+    "/register",
+    response_model=UserResponse,
+    status_code=status.HTTP_201_CREATED,
+    dependencies=[Depends(rate_limit("register", *settings.RATE_LIMIT_REGISTER))],
+)
 async def register(
     body: UserCreate,
     db: Annotated[AsyncSession, Depends(get_db)],
@@ -96,7 +102,11 @@ async def refresh_token(
     return tokens
 
 
-@router.post("/verify-email", status_code=status.HTTP_200_OK)
+@router.post(
+    "/verify-email",
+    status_code=status.HTTP_200_OK,
+    dependencies=[Depends(rate_limit("token", *settings.RATE_LIMIT_TOKEN))],
+)
 async def verify_email(
     body: EmailVerifyRequest,
     db: Annotated[AsyncSession, Depends(get_db)],
@@ -106,7 +116,11 @@ async def verify_email(
     return {"message": "Email verified successfully."}
 
 
-@router.post("/forgot-password", status_code=status.HTTP_200_OK)
+@router.post(
+    "/forgot-password",
+    status_code=status.HTTP_200_OK,
+    dependencies=[Depends(rate_limit("forgot_password", *settings.RATE_LIMIT_FORGOT_PASSWORD))],
+)
 async def forgot_password(
     body: PasswordResetRequest,
     db: Annotated[AsyncSession, Depends(get_db)],
@@ -117,7 +131,11 @@ async def forgot_password(
     return {"message": "If this email exists, a reset link has been sent."}
 
 
-@router.post("/reset-password", status_code=status.HTTP_200_OK)
+@router.post(
+    "/reset-password",
+    status_code=status.HTTP_200_OK,
+    dependencies=[Depends(rate_limit("token", *settings.RATE_LIMIT_TOKEN))],
+)
 async def reset_password(
     body: PasswordReset,
     db: Annotated[AsyncSession, Depends(get_db)],
