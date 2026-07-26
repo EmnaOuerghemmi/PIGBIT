@@ -1,7 +1,16 @@
 # PIQBIT — services d'infrastructure (Redis + PostgreSQL)
 # Valeurs alignées sur backend/.env :
 #   REDIS_URL=redis://localhost:6379
-#   DATABASE_URL=postgresql+psycopg://postgres:root@localhost:5432/piqbit
+#   DATABASE_URL=postgresql+asyncpg://postgres:root@localhost:5433/piqbit
+#
+# NOTE PORTS : ce poste fait tourner DEUX services PostgreSQL Windows —
+# postgresql-x64-17 sur 5432 et postgresql-x64-16 sur 5433. Sous Windows,
+# plusieurs processus peuvent écouter le même port sans erreur : le conteneur
+# semblait donc démarré alors que les connexions partaient en réalité vers le
+# PostgreSQL Windows (constaté : `docker exec` voyait 0 table, une connexion
+# TCP sur le même port en voyait 23). On publie donc ce conteneur sur 5434,
+# port vérifié libre. À l'intérieur du réseau Docker, les services continuent
+# de dialoguer sur le port standard 5432 via le nom d'hôte `postgres`.
 #
 # Démarrer :   docker compose up -d
 # Arrêter  :   docker compose down        (ajouter -v pour effacer les données)
@@ -38,7 +47,8 @@ services:
       POSTGRES_PASSWORD: root
       POSTGRES_DB: piqbit
     ports:
-      - "5432:5432"
+      # 5434 côté hôte : 5432 et 5433 sont déjà pris par les services Windows.
+      - "5434:5432"
     volumes:
       - pg-data:/var/lib/postgresql/data
     healthcheck:

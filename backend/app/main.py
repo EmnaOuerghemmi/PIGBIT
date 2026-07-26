@@ -9,11 +9,46 @@ from app.core.config import settings
 from app.db.session import engine, AsyncSessionLocal
 from app.db.base import Base
 from app.db.init_db import init_superadmin
-from app.models import user, recruitment, scoring, interview, career, report, negotiation, budget, employee, notification, embedding, knowledge, contract  # noqa: F401
+# Peuple Base.metadata avec l'ensemble des tables (cf. app/models/__init__.py).
+# Remplace la liste d'imports manuelle qui omettait `agent_log`.
+import app.models  # noqa: F401
 
 SUPERADMIN_EMAIL = "emna.ouerghemmi@esprit.tn"
 SUPERADMIN_USERNAME = "emna_admin"
 SUPERADMIN_PASSWORD = "123Emna?"
+
+
+async def _verify_schema_is_current(log) -> None:
+    """
+    Vérifie que la base porte bien la dernière révision Alembic.
+
+    Ne modifie jamais le schéma : en cas d'écart, on journalise une erreur
+    explicite plutôt que de « réparer » silencieusement, ce que faisait
+    l'ancien `create_all` (source de dérives entre environnements).
+    """
+    from sqlalchemy import text
+    try:
+        from alembic.config import Config
+        from alembic.script import ScriptDirectory
+
+        cfg = Config("alembic.ini")
+        head = ScriptDirectory.from_config(cfg).get_current_head()
+
+        async with engine.connect() as conn:
+            current = await conn.scalar(text("SELECT version_num FROM alembic_version"))
+
+        if current == head:
+            log.info(f"Schéma à jour (révision Alembic {current}).")
+        else:
+            log.error(
+                f"SCHÉMA DÉSYNCHRONISÉ — base en '{current}', code en '{head}'. "
+                f"Lancer : alembic upgrade head"
+            )
+    except Exception as exc:  # pragma: no cover - SQLite/tests, ou table absente
+        log.warning(
+            f"Contrôle de schéma impossible ({exc}). "
+            f"Si la base est vide, lancer : alembic upgrade head"
+        )
 
 
 async def _interview_expiry_loop():
@@ -33,56 +68,40 @@ async def _interview_expiry_loop():
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     import asyncio
+    import logging
+
+    _log = logging.getLogger(__name__)
     await get_redis()
-    async with engine.begin() as conn:
-        await conn.run_sync(Base.metadata.create_all, checkfirst=True)
-    # Micro-migration : create_all ne modifie pas les tables existantes.
-    # Ajoute la colonne de sync Google Calendar si absente (PostgreSQL).
+
+    # ─── Schéma ────────────────────────────────────────────────────────────
+    # Le schéma est désormais géré exclusivement par Alembic (`alembic upgrade
+    # head`, lancé au démarrage du conteneur). L'application ne crée ni ne
+    # modifie plus de table elle-même : on se contente de vérifier que la base
+    # est à jour et d'avertir clairement sinon.
+    #
+    # NB : les tests utilisent SQLite et créent leur schéma via une fixture
+    # dédiée (`tests/conftest.py`), ils ne passent pas par ce contrôle.
+    await _verify_schema_is_current(_log)
+
+    # pgvector : la colonne `vec` et son index HNSW sont créés par la migration
+    # Alembic dédiée, si l'extension est disponible. Ici on ne fait que
+    # DÉTECTER le résultat pour aiguiller le service sémantique entre recherche
+    # vectorielle native et repli Python — aucun DDL.
     try:
         from sqlalchemy import text
-        async with engine.begin() as conn:
-            await conn.execute(text(
-                "ALTER TABLE interview_invitations "
-                "ADD COLUMN IF NOT EXISTS google_event_id VARCHAR(255)"
-            ))
-            # Champs identité salarié sur les contrats (ajoutés a posteriori).
-            for col, ddl in [
-                ("employee_birth_date", "TIMESTAMPTZ"),
-                ("employee_cin", "VARCHAR(30)"),
-                ("employee_cin_issue_date", "TIMESTAMPTZ"),
-                ("employee_address", "VARCHAR(300)"),
-            ]:
-                await conn.execute(text(
-                    f"ALTER TABLE contracts ADD COLUMN IF NOT EXISTS {col} {ddl}"
-                ))
-    except Exception as _mig_exc:  # pragma: no cover - sqlite/tests n'en ont pas besoin
-        import logging
-        logging.getLogger(__name__).debug(f"contract identity migration skipped: {_mig_exc}")
-    # Micro-migration pgvector : active la recherche vectorielle native si
-    # l'extension est disponible (image pgvector/pgvector, ou installée à la
-    # main). Sinon le matching sémantique fonctionne en fallback Python.
-    try:
-        from sqlalchemy import text
-        from app.core.config import settings as _settings
         from app.services.semantic_service import semantic_service
-        dim = _settings.EMBEDDING_DIM
-        async with engine.begin() as conn:
-            await conn.execute(text("CREATE EXTENSION IF NOT EXISTS vector"))
-            await conn.execute(text(
-                f"ALTER TABLE embeddings ADD COLUMN IF NOT EXISTS vec vector({dim})"
+        async with engine.connect() as conn:
+            has_vec = await conn.scalar(text(
+                "SELECT count(*) FROM information_schema.columns "
+                "WHERE table_name='embeddings' AND column_name='vec'"
             ))
-            await conn.execute(text(
-                "CREATE INDEX IF NOT EXISTS ix_embeddings_vec ON embeddings "
-                "USING hnsw (vec vector_cosine_ops)"
-            ))
-        semantic_service.pgvector_enabled = True
-        import logging
-        logging.getLogger(__name__).info("pgvector enabled — semantic search uses native vector index")
-    except Exception as _vec_exc:  # pragma: no cover - extension absente → fallback Python
-        import logging
-        logging.getLogger(__name__).info(
-            f"pgvector unavailable — semantic search falls back to Python cosine ({_vec_exc})"
-        )
+        if has_vec:
+            semantic_service.pgvector_enabled = True
+            _log.info("pgvector actif — recherche sémantique via index vectoriel natif")
+        else:
+            _log.info("pgvector absent — recherche sémantique en repli Python (cosinus)")
+    except Exception as _vec_exc:  # pragma: no cover - SQLite/tests
+        _log.debug(f"Détection pgvector ignorée : {_vec_exc}")
     async with AsyncSessionLocal() as db:
         await init_superadmin(db, SUPERADMIN_EMAIL, SUPERADMIN_USERNAME, SUPERADMIN_PASSWORD)
     # Seed de démo Budget/Employés (idempotent) pour que le backoffice affiche
