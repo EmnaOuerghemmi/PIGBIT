@@ -203,20 +203,58 @@ Documentation interactive : **`http://localhost:8000/docs`** (Swagger) et `/redo
 
 ## 8. Installation & exécution
 
-### Prérequis
-- Python 3.11+ , Node.js 18+ , PostgreSQL, (Redis optionnel).
+### Déploiement Docker (recommandé)
+
+La pile complète — PostgreSQL (avec pgvector), Redis, API et frontend — se
+lance en une commande depuis la racine du dépôt :
+
+```powershell
+copy backend\.env.example backend\.env   # puis renseigner SECRET_KEY
+docker compose --profile app up -d --build
+```
+
+Application disponible sur **http://localhost:8080**.
+
+nginx sert le frontend et proxifie `/api/` vers le backend : les deux partagent
+donc la même origine. Aucune configuration CORS n'est nécessaire, et la même
+image fonctionne sur n'importe quel domaine sans rebuild.
+
+| Commande | Effet |
+|---|---|
+| `docker compose up -d` | Infrastructure seule (PostgreSQL + Redis) |
+| `docker compose --profile app up -d --build` | Pile complète |
+| `docker compose --profile app logs -f backend` | Journaux de l'API |
+| `docker compose down` | Arrêt (les données sont conservées) |
+| `docker compose down -v` | Arrêt **et suppression des données** |
+
+> **Port PostgreSQL** : le conteneur est publié sur **5434**, pas 5432. De
+> nombreux postes font tourner des services PostgreSQL Windows occupant déjà
+> 5432 et 5433 ; sous Windows, plusieurs processus peuvent se lier au même
+> port sans erreur, et l'application se retrouve alors connectée au mauvais
+> serveur sans le signaler.
+
+#### Avant une mise en production
+
+1. **`SECRET_KEY`** — générer une valeur unique :
+   `python -c "import secrets; print(secrets.token_urlsafe(64))"`
+2. **`ALLOW_LOCALHOST_ORIGINS=false`** — déjà positionné dans le
+   `docker-compose.yml`, à conserver.
+3. **Nom de domaine + HTTPS** — placer un reverse-proxy TLS (Traefik, Caddy,
+   ou nginx avec Let's Encrypt) devant le port 8080.
+4. **Mot de passe PostgreSQL** — remplacer `root` dans `docker-compose.yml`.
+5. **Sauvegardes** — planifier un `pg_dump` du volume `pg-data`.
+
+### Prérequis (installation manuelle)
+- Python 3.14 , Node.js 22+ , PostgreSQL 16+, Redis 7+.
 
 ### Backend
 ```powershell
 cd E:\PIQBIT\backend
 python -m venv venv
 .\venv\Scripts\Activate.ps1
-pip install -r requirements.txt   # ou installer les deps listées (fastapi, uvicorn,
-                                  # sqlalchemy, asyncpg/psycopg, pydantic, pydantic-settings,
-                                  # python-jose, passlib[bcrypt], pyotp, numpy, pandas,
-                                  # scikit-learn, pdfplumber, python-docx, redis, httpx)
-# Configurer .env (voir .env existant) : DATABASE_URL, SECRET_KEY, SMTP_*, etc.
-# Optionnel IA : ANTHROPIC_API_KEY, ANTHROPIC_MODEL=claude-sonnet-4-6
+pip install -r requirements.txt
+# Configurer .env (partir de .env.example) : DATABASE_URL, SECRET_KEY, SMTP_*…
+alembic upgrade head              # créer / mettre à jour le schéma
 uvicorn app.main:app --reload --port 8000
 ```
 
