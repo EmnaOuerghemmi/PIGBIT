@@ -1,0 +1,163 @@
+
+<div class="ranking-container">
+  <div class="ranking-header">
+    <div>
+      <span class="eyebrow">Classement IA</span>
+      <h3>Ranking des candidats</h3>
+    </div>
+    <span class="ranking-count" *ngIf="!isLoading">
+      {{ candidates.length }} profil{{ candidates.length > 1 ? 's' : '' }}
+    </span>
+  </div>
+
+  <div class="legend">
+    <span class="legend-item excellent">🟢 ≥ 85 — Négociation directe</span>
+    <span class="legend-item good">🟡 60-84 — Entretien recommandé</span>
+    <span class="legend-item average">🟠 30-59 — À évaluer</span>
+    <span class="legend-item poor">🔴 &lt; 30 — Rejeter</span>
+  </div>
+
+  <div *ngIf="isLoading" class="loading">
+    <div class="spinner"></div>
+    <p>Chargement du classement...</p>
+  </div>
+
+  <div *ngIf="!isLoading && candidates.length === 0" class="empty-state">
+    <p>Aucun classement disponible. Lancez d'abord l'analyse IA.</p>
+  </div>
+
+  <div *ngIf="!isLoading && candidates.length > 0" class="ranking-list">
+    <article *ngFor="let c of candidates; let i = index"
+             class="ranking-card"
+             [ngClass]="getScoreClass(c.total_score)"
+             [class.top-rank]="i === 0">
+
+      <!-- En-tête de la carte -->
+      <div class="card-top">
+        <div class="rank-badge"
+             [class.rank-gold]="i === 0"
+             [class.rank-silver]="i === 1"
+             [class.rank-bronze]="i === 2">
+          {{ c.rank ?? i + 1 }}
+        </div>
+
+        <div class="candidate-info">
+          <span class="candidate-label">Candidat</span>
+          <strong>{{ c.candidate_name || ('#' + (c.candidate_id | slice:0:12) + '…') }}</strong>
+        </div>
+
+        <div class="score-block">
+          <div class="score-display">
+            <span>{{ c.total_score | number:'1.0-0' }}</span>
+            <small>/100</small>
+          </div>
+          <span class="score-badge" [ngClass]="getScoreClass(c.total_score)">
+            {{ getScoreLabel(c.total_score) }}
+          </span>
+        </div>
+      </div>
+
+      <!-- Bascule : la carte s'ouvre sur l'essentiel (nom + score), le
+           détail (barres, compétences, recommandation, actions) ne
+           s'affiche qu'à la demande. -->
+      <button type="button" class="details-toggle" (click)="toggleExpanded(c)">
+        {{ isExpanded(c) ? 'Masquer les détails' : 'Voir les détails' }}
+        <svg [class.is-open]="isExpanded(c)" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+          <polyline points="6 9 12 15 18 9"/>
+        </svg>
+      </button>
+
+      <div class="card-details" *ngIf="isExpanded(c)">
+
+      <!-- Barres de scores -->
+      <div class="scores-breakdown">
+        <div class="score-item">
+          <div class="score-row">
+            <label>Compétences</label>
+            <span>{{ c.skills_score | number:'1.0-0' }}%</span>
+          </div>
+          <div class="score-bar"><div class="score-bar-fill" [style.width.%]="c.skills_score"></div></div>
+        </div>
+        <div class="score-item">
+          <div class="score-row">
+            <label>Expérience</label>
+            <span>{{ c.experience_score | number:'1.0-0' }}%</span>
+          </div>
+          <div class="score-bar"><div class="score-bar-fill" [style.width.%]="c.experience_score"></div></div>
+        </div>
+        <div class="score-item">
+          <div class="score-row">
+            <label>Formation</label>
+            <span>{{ c.education_score | number:'1.0-0' }}%</span>
+          </div>
+          <div class="score-bar"><div class="score-bar-fill" [style.width.%]="c.education_score"></div></div>
+        </div>
+      </div>
+
+      <!-- Compétences matchées -->
+      <div class="skills-row" *ngIf="c.score_details">
+        <div class="chips-mini" *ngIf="c.score_details.matched_skills.length > 0">
+          <span class="chips-label">✓</span>
+          <span *ngFor="let s of c.score_details.matched_skills.slice(0, 4)" class="chip-mini chip-green">{{ s }}</span>
+          <span *ngIf="c.score_details.matched_skills.length > 4" class="chip-mini chip-more">+{{ c.score_details.matched_skills.length - 4 }}</span>
+        </div>
+        <div class="chips-mini" *ngIf="c.score_details.missing_skills.length > 0">
+          <span class="chips-label miss">✗</span>
+          <span *ngFor="let s of c.score_details.missing_skills.slice(0, 3)" class="chip-mini chip-red">{{ s }}</span>
+          <span *ngIf="c.score_details.missing_skills.length > 3" class="chip-mini chip-more">+{{ c.score_details.missing_skills.length - 3 }}</span>
+        </div>
+      </div>
+
+      <!-- Recommandation courte -->
+      <div class="recommendation-line" *ngIf="c.score_details?.recommendation">
+        {{ c.score_details!.recommendation }}
+      </div>
+
+      <!-- Interview status pill (shown when an invitation exists) -->
+      <div *ngIf="hasActiveInterview(c)"
+           class="interview-status-pill"
+           [class.is-confirmed]="isInterviewConfirmed(c)"
+           [class.is-pending]="isInterviewPending(c)">
+        {{ interviewBadgeLabel(c) }}
+      </div>
+
+      <!-- Actions workflow selon le score -->
+      <div class="workflow-actions">
+        <!-- Score ≥ 85 : Négociation directe -->
+        <button *ngIf="c.total_score >= 85"
+                class="action-btn action-negotiate"
+                [disabled]="isInterviewConfirmed(c)"
+                (click)="onNegotiate(c)"
+                title="Lancer la négociation salariale automatique">
+          ⭐ Lancer Négociation
+        </button>
+
+        <!-- 30 ≤ score < 85 : Planifier entretien -->
+        <button *ngIf="c.total_score >= 30 && c.total_score < 85"
+                class="action-btn action-interview"
+                [disabled]="hasActiveInterview(c)"
+                (click)="onScheduleInterview(c)"
+                [title]="hasActiveInterview(c)
+                  ? (isInterviewConfirmed(c)
+                      ? 'Entretien déjà confirmé — annulez-le depuis Entretiens pour replanifier'
+                      : 'Invitation déjà envoyée — en attente du choix du candidat')
+                  : 'Planifier un entretien avec ce candidat'">
+          <ng-container *ngIf="!hasActiveInterview(c)">📞 Planifier Entretien</ng-container>
+          <ng-container *ngIf="isInterviewPending(c)">⏳ Invitation envoyée</ng-container>
+          <ng-container *ngIf="isInterviewConfirmed(c)">✓ Entretien confirmé</ng-container>
+        </button>
+
+        <!-- Score < 30 : Rejeter -->
+        <button *ngIf="c.total_score < 30"
+                class="action-btn action-reject"
+                (click)="onReject(c)"
+                title="Rejeter cette candidature">
+          ✕ Rejeter
+        </button>
+      </div>
+
+      </div>
+
+    </article>
+  </div>
+</div>

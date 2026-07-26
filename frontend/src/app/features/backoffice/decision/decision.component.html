@@ -1,0 +1,118 @@
+<div class="module-page">
+
+  <header class="page-header">
+    <div class="page-header__intro">
+      <span class="eyebrow">Aide à la décision</span>
+      <h1>Décision d'embauche</h1>
+      <p>Recommandations IA par candidat (basées sur le scoring) et évaluation d'offres salariales.</p>
+    </div>
+  </header>
+
+  <div class="state-banner state-banner--error" *ngIf="error">{{ error }}</div>
+
+  <!-- ── RECOMMANDATIONS PAR CANDIDAT ──────────────────────── -->
+  <section class="surface">
+    <div class="surface__head">
+      <h2>Recommandations par candidat</h2>
+      <div class="head-controls">
+        <select [(ngModel)]="selectedJobId" name="job" (change)="loadCandidates()">
+          <option value="" disabled>Choisir une offre…</option>
+          <option *ngFor="let j of jobs" [value]="j.id">{{ j.title }}</option>
+        </select>
+        <button type="button" class="btn-primary" (click)="recommendAll()"
+                [disabled]="!candidates.length || loadingCandidates">
+          ⚡ Recommander tous
+        </button>
+      </div>
+    </div>
+
+    <div class="state-banner" *ngIf="loadingCandidates">Chargement des candidats…</div>
+
+    <div class="table-wrap" *ngIf="!loadingCandidates">
+      <table class="data-table">
+        <thead>
+          <tr>
+            <th>Rang</th>
+            <th>Score IA</th>
+            <th>Compétences</th>
+            <th>Expérience</th>
+            <th>Recommandation</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody>
+          <ng-container *ngFor="let c of candidates; trackBy: trackCandidate">
+            <tr>
+              <td class="rank">#{{ c.rank ?? '—' }}</td>
+              <td>
+                <span class="score-badge" [class.score-badge--high]="c.total_score >= 65"
+                      [class.score-badge--low]="c.total_score < 50">
+                  {{ c.total_score | number:'1.0-1' }}
+                </span>
+              </td>
+              <td>{{ c.skills_score | number:'1.0-0' }}</td>
+              <td>{{ c.experience_score | number:'1.0-0' }}</td>
+              <td>
+                <ng-container *ngIf="recommendations[c.application_id] as rec; else noRec">
+                  <span class="rec-badge" [attr.data-rec]="rec.recommendation">
+                    {{ recIcon(rec.recommendation) }} {{ recLabel(rec.recommendation) }}
+                  </span>
+                  <small class="rationale">{{ rec.rationale }}</small>
+                </ng-container>
+                <ng-template #noRec><span class="muted">—</span></ng-template>
+              </td>
+              <td class="row-actions">
+                <button type="button" class="btn-ghost btn-sm"
+                        [disabled]="loadingRecId === c.application_id"
+                        (click)="getRecommendation(c)">
+                  {{ loadingRecId === c.application_id ? '…' : 'Analyser' }}
+                </button>
+              </td>
+            </tr>
+          </ng-container>
+          <tr *ngIf="!candidates.length">
+            <td colspan="6" class="empty-cell">
+              Aucun candidat scoré pour cette offre — lancez d'abord l'analyse des CV depuis la page Recrutement.
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- ── ÉVALUATION D'OFFRE SALARIALE ──────────────────────── -->
+  <section class="surface">
+    <div class="surface__head">
+      <h2>Évaluation d'offre salariale</h2>
+      <span class="surface__hint">Moteur de décision : accepter / contre-offre / rejeter selon le ratio offre ÷ salaire prédit</span>
+    </div>
+
+    <form class="offer-form" (submit)="evaluateOffer(); $event.preventDefault()">
+      <div class="form-group">
+        <label>Salaire prédit (TND)</label>
+        <input type="number" min="1" [(ngModel)]="offerForm.predicted_salary" name="predicted" required
+               placeholder="ex. 2800 — via la page Négociation">
+      </div>
+      <div class="form-group">
+        <label>Offre proposée (TND)</label>
+        <input type="number" min="1" [(ngModel)]="offerForm.offered_salary" name="offered" required
+               placeholder="ex. 2500">
+      </div>
+      <div class="form-group">
+        <label>Confiance du modèle : {{ offerForm.confidence | number:'1.0-2' }}</label>
+        <input type="range" min="0" max="1" step="0.05" [(ngModel)]="offerForm.confidence" name="confidence">
+      </div>
+      <button type="submit" class="btn-primary" [disabled]="evaluating">
+        {{ evaluating ? 'Évaluation…' : 'Évaluer l\'offre' }}
+      </button>
+    </form>
+
+    <div class="offer-result" *ngIf="offerResult" [attr.data-tone]="decisionTone(offerResult.decision)">
+      <div class="offer-result__decision">
+        {{ decisionLabel(offerResult.decision) }}
+        <span *ngIf="offerResult.counter_offer"> — contre-offre : <strong>{{ offerResult.counter_offer | number:'1.0-0' }} TND</strong></span>
+      </div>
+      <p class="offer-result__reason">{{ offerResult.reason }}</p>
+    </div>
+  </section>
+</div>

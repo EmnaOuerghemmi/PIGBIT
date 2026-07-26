@@ -1,0 +1,182 @@
+
+    <button (click)="goBack()" class="btn-back">
+      ← Retour aux offres
+    </button>
+
+    <div class="job-detail" *ngIf="job; else noJob">
+      <div class="detail-header">
+        <h1>{{ job.title }}</h1>
+        <div class="metadata">
+          <div class="meta-item" *ngIf="job.salary_min">
+            <span class="meta-label">Salaire:</span>
+            <span class="meta-value">{{ job.salary_min | number:'1.0-0' }} - {{ job.salary_max | number:'1.0-0' }} TND</span>
+          </div>
+          <div class="meta-item">
+            <span class="meta-label">Type:</span>
+            <span class="meta-badge">CDI</span>
+          </div>
+          <div class="meta-item">
+            <span class="meta-label">Publié:</span>
+            <span class="meta-value">{{ job.created_at | date:'dd/MM/yyyy' }}</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="detail-content">
+        <div class="description-section">
+          <h2>Description de l'offre</h2>
+          <div class="description">{{ job.description }}</div>
+
+          <!-- Skills Section -->
+          <div class="skills-section" *ngIf="job.required_skills && job.required_skills.length > 0">
+            <h3>Compétences requises</h3>
+            <div class="skills-list">
+              <span *ngFor="let skill of job.required_skills" class="skill-tag">{{ skill }}</span>
+            </div>
+          </div>
+
+          <!-- Candidate Requirements -->
+          <div class="requirements-section" *ngIf="job.required_experience_years || job.required_education_level">
+            <h3>Critères de sélection</h3>
+            <ul class="requirements-list">
+              <li *ngIf="job.required_experience_years">
+                Expérience minimum: <strong>{{ job.required_experience_years }} ans</strong>
+              </li>
+              <li *ngIf="job.required_education_level">
+                Niveau d'éducation: <strong>{{ getEducationLabel(job.required_education_level) }}</strong>
+              </li>
+            </ul>
+          </div>
+        </div>
+
+        <aside class="apply-sidebar">
+          <div class="apply-card">
+            <h3>Intéressé par cette offre?</h3>
+            <ng-template #unauthenticatedForm>
+              <p class="auth-notice">Vous devez être connecté pour postuler.</p>
+              <button type="button" (click)="goLogin()" class="btn-primary">
+                Se connecter
+              </button>
+            </ng-template>
+
+            <div *ngIf="isAuthenticated; else unauthenticatedForm">
+              <div class="form-group">
+                <label for="cv-input">Joindre votre CV <span class="required">*</span></label>
+                <div class="file-upload">
+                  <input
+                    type="file"
+                    id="cv-input"
+                    accept=".pdf,.doc,.docx"
+                    (change)="onFileSelected($event)"
+                    class="file-input"
+                  />
+                  <div class="file-upload-area">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                      <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                      <polyline points="17 8 12 3 7 8"></polyline>
+                      <line x1="12" y1="3" x2="12" y2="15"></line>
+                    </svg>
+                    <p>Déposer votre CV ici ou cliquer pour sélectionner</p>
+                  </div>
+                </div>
+                <div class="file-info" *ngIf="selectedFile">
+                  <div class="file-check">✓</div>
+                  <div class="file-details">
+                    <p class="file-name">{{ selectedFile.name }}</p>
+                    <p class="file-size">{{ (selectedFile.size / 1024 / 1024).toFixed(2) }} MB</p>
+                  </div>
+                </div>
+                <p class="file-hint">Formats acceptés: PDF, DOC, DOCX (max 5 MB)</p>
+              </div>
+
+              <button
+                type="button"
+                (click)="apply()"
+                [disabled]="isApplying || !selectedFile"
+                class="btn-primary"
+              >
+                {{ isApplying ? '⏳ Candidature en cours...' : 'Postuler' }}
+              </button>
+
+              <button
+                type="button"
+                (click)="toggleSave()"
+                [disabled]="saving"
+                class="btn-secondary"
+                style="margin-top: 0.5rem; width: 100%;"
+              >
+                {{ isSaved ? '★ Sauvegardée — retirer' : '☆ Sauvegarder cette offre' }}
+              </button>
+            </div>
+
+            <p *ngIf="successMsg" class="success">✓ {{ successMsg }}</p>
+            <p *ngIf="errorMsg" class="error">✕ {{ errorMsg }}</p>
+
+            <!-- Analysis Section (shown after successful application) -->
+            <div *ngIf="successMsg && analysisData" class="analysis-section">
+              <h4>📊 Analyse de votre candidature</h4>
+
+              <!-- Score -->
+              <div class="score-card">
+                <div class="score-value">{{ analysisData.total_score | number:'1.0-0' }}/100</div>
+                <div class="score-label">Score global</div>
+              </div>
+
+              <!-- Skills Match -->
+              <div class="match-item">
+                <div class="match-header">
+                  <span>Compétences</span>
+                  <span class="match-percent">{{ analysisData.skills_match_percentage | number:'1.0-0' }}%</span>
+                </div>
+                <div class="progress-bar">
+                  <div class="progress-fill" [style.width.%]="analysisData.skills_match_percentage"></div>
+                </div>
+                <div class="extracted-skills" *ngIf="cvAnalysisData?.extracted_skills">
+                  <span class="label">Compétences détectées:</span>
+                  <div class="skills-list">
+                    <span *ngFor="let skill of cvAnalysisData.extracted_skills" class="skill-tag small">{{ skill }}</span>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Experience Match -->
+              <div class="match-item">
+                <div class="match-header">
+                  <span>Expérience</span>
+                  <span class="match-percent">{{ analysisData.experience_match_percentage | number:'1.0-0' }}%</span>
+                </div>
+                <div class="progress-bar">
+                  <div class="progress-fill" [style.width.%]="analysisData.experience_match_percentage"></div>
+                </div>
+                <div class="experience-info" *ngIf="cvAnalysisData?.extracted_experience_years !== undefined">
+                  Expérience détectée: <strong>{{ cvAnalysisData.extracted_experience_years }} ans</strong>
+                </div>
+              </div>
+
+              <!-- Education Match -->
+              <div class="match-item">
+                <div class="match-header">
+                  <span>Éducation</span>
+                  <span class="match-icon">{{ analysisData.education_match ? '✓' : '✗' }}</span>
+                </div>
+                <div class="education-info">
+                  {{ analysisData.education_match ? 'Correspond au critère' : 'Non conforme aux critères' }}
+                  <span *ngIf="cvAnalysisData?.extracted_education_level" class="detail">
+                    ({{ cvAnalysisData.extracted_education_level }})
+                  </span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </aside>
+      </div>
+    </div>
+
+    <ng-template #noJob>
+      <div class="empty-state">
+        <div class="empty-icon">❌</div>
+        <h2>Offre non trouvée</h2>
+        <p>L'offre d'emploi que vous recherchez n'existe pas ou a été supprimée.</p>
+        <button (click)="goBack()" class="btn-secondary">Retour aux offres</button>
+      </div>
+    </ng-template>

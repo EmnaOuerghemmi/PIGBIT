@@ -1,0 +1,10 @@
+<div class="kpi-card">
+  <div class="kpi-header">
+    <h3>{{ title }}</h3>
+    <span class="icon">{{ icon }}</span>
+  </div>
+  <div class="kpi-value">{{ value }}</div>
+  <div class="kpi-trend" [class.positive]="trend > 0" [class.negative]="trend < 0">
+    <span>{{ trend > 0 ? '+' : '' }}{{ trend }}%</span>
+  </div>
+</div>

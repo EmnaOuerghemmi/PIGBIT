@@ -1,0 +1,129 @@
+
+<div class="score-breakdown-container">
+  <div class="breakdown-header">
+    <span class="eyebrow">Analyse IA</span>
+    <h3>Résultat du scoring</h3>
+  </div>
+
+  <div *ngIf="isLoading" class="loading">
+    <div class="spinner"></div>
+    <p>Chargement de l'analyse...</p>
+  </div>
+
+  <div *ngIf="!isLoading && scoreData" class="breakdown-content">
+
+    <!-- Score global + rang -->
+    <section class="score-card main-score">
+      <div class="score-circle" [ngClass]="getScoreClass()">
+        <span>{{ scoreData.total_score | number:'1.0-0' }}</span>
+        <small>/100</small>
+      </div>
+      <div class="score-info">
+        <h4>{{ getScoreLabel() }}</h4>
+        <p *ngIf="scoreData.rank">Classé <strong>#{{ scoreData.rank }}</strong> parmi les candidats</p>
+        <p *ngIf="!scoreData.rank">Score calculé par l'IA</p>
+      </div>
+    </section>
+
+    <!-- Scores détaillés -->
+    <div class="scores-grid">
+      <section class="score-section">
+        <div class="section-header">
+          <h4>Compétences</h4>
+          <span>{{ scoreData.skills_score | number:'1.0-0' }}%</span>
+        </div>
+        <div class="progress-bar">
+          <div class="progress-fill" [style.width.%]="scoreData.skills_score"></div>
+        </div>
+        <p>Alignement avec les compétences requises.</p>
+      </section>
+
+      <section class="score-section">
+        <div class="section-header">
+          <h4>Expérience</h4>
+          <span>{{ scoreData.experience_score | number:'1.0-0' }}%</span>
+        </div>
+        <div class="progress-bar">
+          <div class="progress-fill" [style.width.%]="scoreData.experience_score"></div>
+        </div>
+        <p *ngIf="details">
+          {{ details.extracted_years ?? '?' }} ans détectés
+          <span *ngIf="details.required_years"> / {{ details.required_years }} requis</span>
+        </p>
+      </section>
+
+      <section class="score-section">
+        <div class="section-header">
+          <h4>Formation</h4>
+          <span>{{ scoreData.education_score | number:'1.0-0' }}%</span>
+        </div>
+        <div class="progress-bar">
+          <div class="progress-fill" [style.width.%]="scoreData.education_score"></div>
+        </div>
+        <p *ngIf="details">
+          Détecté : {{ details.extracted_education || '-' }}
+          <span *ngIf="details.required_education"> / Requis : {{ details.required_education }}</span>
+        </p>
+      </section>
+    </div>
+
+    <!-- Compétences -->
+    <section class="skills-section" *ngIf="details">
+      <div class="skills-panel">
+        <h4>Compétences compatibles
+          <span class="badge badge-green">{{ details.matched_skills.length }}</span>
+        </h4>
+        <div class="chips-row" *ngIf="details.matched_skills.length > 0; else noMatch">
+          <span *ngFor="let s of details.matched_skills" class="chip chip-green">{{ s }}</span>
+        </div>
+        <ng-template #noMatch>
+          <p class="no-data">Aucune compétence requise détectée.</p>
+        </ng-template>
+      </div>
+
+      <div class="skills-panel">
+        <h4>Compétences manquantes
+          <span class="badge badge-red">{{ details.missing_skills.length }}</span>
+        </h4>
+        <div class="chips-row" *ngIf="details.missing_skills.length > 0; else noMissing">
+          <span *ngFor="let s of details.missing_skills" class="chip chip-red">{{ s }}</span>
+        </div>
+        <ng-template #noMissing>
+          <p class="no-data">Toutes les compétences requises sont présentes.</p>
+        </ng-template>
+      </div>
+    </section>
+
+    <!-- Points forts / Points faibles -->
+    <section class="sw-section" *ngIf="details">
+      <div class="sw-panel sw-panel--strengths" *ngIf="details.strengths.length > 0">
+        <h4>Points forts</h4>
+        <ul>
+          <li *ngFor="let item of details.strengths">
+            <span class="sw-icon">✓</span>{{ item }}
+          </li>
+        </ul>
+      </div>
+
+      <div class="sw-panel sw-panel--weaknesses" *ngIf="details.weaknesses.length > 0">
+        <h4>Points faibles</h4>
+        <ul>
+          <li *ngFor="let item of details.weaknesses">
+            <span class="sw-icon">✗</span>{{ item }}
+          </li>
+        </ul>
+      </div>
+    </section>
+
+    <!-- Recommandation finale -->
+    <section class="recommendation" [ngClass]="getScoreClass()" *ngIf="details?.recommendation">
+      <h4>Recommandation</h4>
+      <p>{{ details!.recommendation }}</p>
+    </section>
+
+  </div>
+
+  <div *ngIf="!isLoading && !scoreData" class="empty-state">
+    <p>Aucune donnée de score disponible. Lancez d'abord l'analyse.</p>
+  </div>
+</div>

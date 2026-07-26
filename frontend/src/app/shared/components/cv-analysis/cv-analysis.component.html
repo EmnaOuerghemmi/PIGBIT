@@ -1,0 +1,122 @@
+
+<div class="cv-analysis-container">
+  <div class="analysis-header">
+    <span class="eyebrow">Extraction CV</span>
+    <h3>Données extraites par l'IA</h3>
+    <p>Résultat du parsing automatique du CV.</p>
+  </div>
+
+  <div *ngIf="isLoading" class="loading">
+    <div class="spinner"></div>
+    <p>Analyse du CV en cours...</p>
+  </div>
+
+  <div *ngIf="!isLoading && analysisData" class="analysis-content">
+
+    <!-- Résumé -->
+    <section class="summary-section">
+      <h4>Résumé</h4>
+      <div class="summary-grid">
+        <div class="summary-item">
+          <span>Compétences</span>
+          <strong>{{ analysisData.extracted_skills.length }}</strong>
+        </div>
+        <div class="summary-item">
+          <span>Expérience</span>
+          <strong>{{ analysisData.extracted_experience_years !== null ? (analysisData.extracted_experience_years + ' ans') : 'N/A' }}</strong>
+        </div>
+        <div class="summary-item">
+          <span>Formation</span>
+          <strong>{{ formatEducation(analysisData.extracted_education_level) }}</strong>
+        </div>
+      </div>
+    </section>
+
+    <!-- Compétences détectées -->
+    <section class="section">
+      <div class="section-header">
+        <h4>Compétences détectées</h4>
+        <span class="match-percent">{{ analysisData.extracted_skills.length }} trouvée(s)</span>
+      </div>
+      <div class="skills-list" *ngIf="analysisData.extracted_skills.length > 0; else noSkills">
+        <span *ngFor="let skill of analysisData.extracted_skills" class="skill-badge">{{ skill }}</span>
+      </div>
+      <ng-template #noSkills>
+        <p class="no-data">Aucune compétence détectée.</p>
+      </ng-template>
+    </section>
+
+    <!-- Expérience professionnelle -->
+    <section class="section">
+      <div class="section-header">
+        <h4>Expérience professionnelle</h4>
+        <span *ngIf="analysisData.extracted_experience_years !== null"
+              class="match-percent">{{ analysisData.extracted_experience_years }} ans</span>
+        <span *ngIf="analysisData.extracted_experience_years === null"
+              class="match-pill no-match">Non détectée</span>
+      </div>
+      <div class="info-row" *ngIf="analysisData.extracted_experience_years !== null">
+        <span>Années calculées depuis les dates du CV</span>
+        <strong>{{ analysisData.extracted_experience_years }} ans</strong>
+      </div>
+      <p class="no-data" *ngIf="analysisData.extracted_experience_years === null">
+        Aucune plage de dates d'expérience détectable dans le CV.
+      </p>
+    </section>
+
+    <!-- Formation -->
+    <section class="section">
+      <div class="section-header">
+        <h4>Formation</h4>
+        <span class="match-pill" [ngClass]="analysisData.extracted_education_level && analysisData.extracted_education_level !== 'NONE' ? 'match' : 'no-match'">
+          {{ analysisData.extracted_education_level && analysisData.extracted_education_level !== 'NONE' ? 'Détecté' : 'Non précisé' }}
+        </span>
+      </div>
+      <div class="info-row">
+        <span>Niveau détecté</span>
+        <strong>{{ formatEducation(analysisData.extracted_education_level) }}</strong>
+      </div>
+    </section>
+
+    <!-- Titres de postes détectés -->
+    <section class="section" *ngIf="analysisData.extracted_job_titles.length > 0">
+      <div class="section-header">
+        <h4>Titres de postes</h4>
+        <span class="match-percent">{{ analysisData.extracted_job_titles.length }}</span>
+      </div>
+      <div class="skills-list">
+        <span *ngFor="let title of analysisData.extracted_job_titles" class="skill-badge skill-badge--title">{{ title }}</span>
+      </div>
+    </section>
+
+    <!-- Mots-clés extraits -->
+    <section class="section" *ngIf="analysisData.extracted_keywords.length > 0">
+      <div class="section-header">
+        <h4>Mots-clés principaux</h4>
+        <span class="match-percent">Top {{ analysisData.extracted_keywords.length }}</span>
+      </div>
+      <div class="skills-list">
+        <span *ngFor="let kw of analysisData.extracted_keywords.slice(0, 20)" class="skill-badge skill-badge--kw">{{ kw }}</span>
+      </div>
+    </section>
+
+    <!-- Horodatage -->
+    <section class="section meta-section">
+      <div class="info-row">
+        <span>Analysé le</span>
+        <strong>{{ formatDate(analysisData.parsed_at) }}</strong>
+      </div>
+      <div class="info-row">
+        <span>Statut</span>
+        <strong [style.color]="analysisData.is_parsed ? '#86efac' : '#fca5a5'">
+          {{ analysisData.is_parsed ? 'Analyse complète' : 'En attente' }}
+        </strong>
+      </div>
+    </section>
+
+  </div>
+
+  <div *ngIf="!isLoading && !analysisData" class="empty-state">
+    <p>Aucune analyse disponible. Lancez d'abord l'analyse depuis l'onglet Score.</p>
+  </div>
+</div>

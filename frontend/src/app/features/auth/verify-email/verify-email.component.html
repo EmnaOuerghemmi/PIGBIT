@@ -1,0 +1,49 @@
+<div class="verify-page">
+
+  <!-- Animated Background Blobs -->
+  <div class="blob blob-1"></div>
+  <div class="blob blob-2"></div>
+  <div class="blob blob-3"></div>
+
+  <!-- Center Card -->
+  <div class="verify-card">
+
+    <!-- Brand -->
+    <div class="brand">
+      <h1 class="brand-name">PIQBIT</h1>
+      <p class="brand-tagline">Vérification de votre email</p>
+    </div>
+
+    <!-- Loading State -->
+    <div *ngIf="isLoading" class="loading-state">
+      <div class="spinner-large"></div>
+      <p class="loading-text">Vérification en cours...</p>
+    </div>
+
+    <!-- Success State -->
+    <div *ngIf="isSuccess && !isLoading" class="success-state">
+      <div class="success-icon">
+        <svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <polyline points="20 6 9 17 4 12"></polyline>
+        </svg>
+      </div>
+      <h2 class="success-title">Email vérifié avec succès !</h2>
+      <p class="success-message">Votre adresse email a été confirmée. Redirection vers la connexion en cours...</p>
+    </div>
+
+    <!-- Error State -->
+    <div *ngIf="errorMessage && !isLoading" class="error-state">
+      <div class="error-icon">
+        <svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>
+        </svg>
+      </div>
+      <h2 class="error-title">Vérification échouée</h2>
+      <p class="error-message">{{ errorMessage }}</p>
+      <p class="error-hint">Le lien de vérification peut avoir expiré. Veuillez demander un nouveau lien.</p>
+      <a routerLink="/login" class="back-btn">Retour à la connexion</a>
+    </div>
+
+    <p class="footer-text">&copy; {{ currentYear }} PIQBIT — Tunisie, Afrique &amp; Europe</p>
+  </div>
+</div>

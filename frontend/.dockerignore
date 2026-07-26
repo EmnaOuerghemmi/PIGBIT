@@ -1,0 +1,15 @@
+# Exclut du contexte de build tout ce que l'image n'a pas à recevoir.
+# Sans ce fichier, `docker build` téléverse node_modules (~500 Mo) au démon,
+# ce qui rend chaque build inutilement lent.
+
+node_modules
+dist
+.angular
+.git
+.gitignore
+*.md
+.vscode
+.idea
+Dockerfile
+.dockerignore
+npm-debug.log*

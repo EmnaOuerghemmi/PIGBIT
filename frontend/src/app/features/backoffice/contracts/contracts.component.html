@@ -1,0 +1,123 @@
+<div class="module-page">
+
+  <header class="page-header">
+    <div class="page-header__intro">
+      <span class="eyebrow">Onboarding</span>
+      <h1>Contrats de travail</h1>
+      <p>Du candidat accepté à l'employé : générez, envoyez et suivez la signature électronique des contrats.</p>
+    </div>
+  </header>
+
+  <div class="state-banner state-banner--error" *ngIf="error">{{ error }}</div>
+
+  <!-- KPIs -->
+  <section class="kpi-grid" *ngIf="stats">
+    <article class="kpi-card" data-tone="gold"><div class="kpi-card__body"><p class="kpi-card__value">{{ stats.draft }}</p><p class="kpi-card__label">Brouillons</p></div></article>
+    <article class="kpi-card" data-tone="info"><div class="kpi-card__body"><p class="kpi-card__value">{{ stats.sent }}</p><p class="kpi-card__label">Envoyés (à signer)</p></div></article>
+    <article class="kpi-card" data-tone="success"><div class="kpi-card__body"><p class="kpi-card__value">{{ stats.active }}</p><p class="kpi-card__label">Signés / actifs</p></div></article>
+    <article class="kpi-card" data-tone="violet"><div class="kpi-card__body"><p class="kpi-card__value">{{ stats.total }}</p><p class="kpi-card__label">Total contrats</p></div></article>
+  </section>
+
+  <section class="surface">
+    <div class="surface__head">
+      <h2>Tous les contrats</h2>
+      <select [(ngModel)]="statusFilter" (ngModelChange)="load()" class="filter-select">
+        <option value="">Tous les statuts</option>
+        <option value="DRAFT">Brouillon</option>
+        <option value="SENT">Envoyé</option>
+        <option value="SIGNED">Signé</option>
+        <option value="ACTIVE">Actif</option>
+        <option value="DECLINED">Refusé</option>
+        <option value="EXPIRED">Expiré</option>
+      </select>
+    </div>
+
+    <div class="state-banner" *ngIf="loading">Chargement…</div>
+
+    <div class="table-wrap" *ngIf="!loading">
+      <table class="data-table">
+        <thead>
+          <tr><th>Candidat</th><th>Poste</th><th>Type</th><th>Salaire</th><th>Statut</th><th class="th-actions">Actions</th></tr>
+        </thead>
+        <tbody>
+          <ng-container *ngFor="let c of contracts; trackBy: trackC">
+            <tr>
+              <td>
+                <div class="cand-cell">
+                  <strong>{{ c.candidate_name || '—' }}</strong>
+                  <small>{{ c.candidate_email }}</small>
+                </div>
+              </td>
+              <td>{{ c.position }} <span class="dept" *ngIf="c.department">· {{ c.department }}</span></td>
+              <td><span class="type-pill">{{ c.contract_type }}</span></td>
+              <td class="num">{{ c.salary | number:'1.0-0' }} {{ c.currency }}</td>
+              <td><span class="status" [attr.data-tone]="statusTone(c.status)">{{ statusLabel(c.status) }}</span></td>
+              <td class="row-actions">
+                <!-- Brouillon : éditer, envoyer, supprimer -->
+                <ng-container *ngIf="c.status === 'DRAFT'">
+                  <button class="icon-btn" title="Éditer" (click)="startEdit(c)">✏️</button>
+                  <button class="icon-btn icon-btn--primary" title="Envoyer au candidat"
+                          [disabled]="sendingId === c.id" (click)="send(c)">
+                    {{ sendingId === c.id ? '…' : '📤 Envoyer' }}
+                  </button>
+                  <button class="icon-btn icon-btn--danger" title="Supprimer" (click)="remove(c)">✕</button>
+                </ng-container>
+                <!-- Envoyé : copier le lien -->
+                <ng-container *ngIf="c.status === 'SENT'">
+                  <button class="icon-btn" title="Copier le lien de signature" (click)="copyLink(c)">
+                    {{ copiedId === c.id ? '✓ Copié' : '🔗 Lien' }}
+                  </button>
+                </ng-container>
+                <!-- PDF toujours dispo -->
+                <button class="icon-btn" title="Télécharger le PDF"
+                        [disabled]="downloadingId === c.id" (click)="downloadPdf(c)">📄</button>
+              </td>
+            </tr>
+
+            <!-- Ligne d'édition inline (brouillon) -->
+            <tr *ngIf="editing?.id === c.id" class="edit-row">
+              <td colspan="6">
+                <div class="edit-panel">
+                  <div class="edit-grid">
+                    <label>Type
+                      <select [(ngModel)]="editModel.contract_type" name="t">
+                        <option *ngFor="let t of types" [value]="t">{{ t }}</option>
+                      </select>
+                    </label>
+                    <label>Poste <input type="text" [(ngModel)]="editModel.position" name="p"></label>
+                    <label>Département <input type="text" [(ngModel)]="editModel.department" name="d"></label>
+                    <label>Salaire (TND) <input type="number" [(ngModel)]="editModel.salary" name="s"></label>
+                    <label>Période d'essai (mois) <input type="number" [(ngModel)]="editModel.trial_period_months" name="tp"></label>
+                    <label>Heures / semaine <input type="number" [(ngModel)]="editModel.weekly_hours" name="wh"></label>
+                    <label>Date de début <input type="date" [(ngModel)]="editModel.start_date" name="sd"></label>
+                    <label>Date de naissance <input type="date" [(ngModel)]="editModel.employee_birth_date" name="bd"></label>
+                    <label>N° CIN <input type="text" [(ngModel)]="editModel.employee_cin" name="cin" placeholder="ex. 11959443"></label>
+                    <label>CIN délivrée le <input type="date" [(ngModel)]="editModel.employee_cin_issue_date" name="cid"></label>
+                  </div>
+                  <label class="edit-notes">Adresse du salarié
+                    <input type="text" [(ngModel)]="editModel.employee_address" name="addr" placeholder="Rue, ville, gouvernorat">
+                  </label>
+                  <label class="edit-notes">Dispositions particulières
+                    <textarea [(ngModel)]="editModel.notes" name="n" rows="2"></textarea>
+                  </label>
+                  <div class="edit-actions">
+                    <button class="btn-ghost" (click)="cancelEdit()">Annuler</button>
+                    <button class="btn-primary" [disabled]="saving" (click)="saveEdit()">
+                      {{ saving ? 'Enregistrement…' : 'Enregistrer' }}
+                    </button>
+                  </div>
+                </div>
+              </td>
+            </tr>
+          </ng-container>
+
+          <tr *ngIf="!contracts.length">
+            <td colspan="6" class="empty-cell">
+              Aucun contrat. Générez-en un depuis la page <strong>Candidatures</strong> (bouton « Contrat » sur un candidat accepté).
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+</div>

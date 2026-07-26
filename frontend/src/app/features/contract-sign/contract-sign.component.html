@@ -1,0 +1,127 @@
+<div class="sign-page">
+  <div class="sign-bg-a"></div>
+  <div class="sign-bg-b"></div>
+
+  <div class="sign-shell">
+
+    <!-- Marque -->
+    <div class="sign-brand">
+      <span class="brand-logo">P</span>
+      <span>PIQBIT</span>
+    </div>
+
+    <!-- Chargement / erreur -->
+    <div class="sign-card sign-state" *ngIf="loading">Chargement du contrat…</div>
+    <div class="sign-card sign-state sign-state--error" *ngIf="error && !contract">{{ error }}</div>
+
+    <ng-container *ngIf="contract">
+
+      <!-- ══ ÉTAT : déjà signé / actif ══ -->
+      <div class="sign-card sign-done" *ngIf="contract.status === 'SIGNED' || contract.status === 'ACTIVE'">
+        <div class="done-check">✓</div>
+        <h1>Contrat signé 🎉</h1>
+        <p>Merci <strong>{{ contract.candidate_name }}</strong>. Votre contrat pour
+          « <strong>{{ contract.job_title }}</strong> » est signé et enregistré.</p>
+        <p class="cert" *ngIf="contract.certificate_id">
+          Certificat : <code>{{ contract.certificate_id }}</code>
+        </p>
+        <p class="done-note">Bienvenue chez {{ contract.company_name }} ! Vous pouvez fermer cette page.</p>
+      </div>
+
+      <!-- ══ ÉTAT : refusé ══ -->
+      <div class="sign-card sign-done sign-done--muted" *ngIf="contract.status === 'DECLINED'">
+        <div class="done-check done-check--muted">✕</div>
+        <h1>Contrat refusé</h1>
+        <p>Vous avez décliné ce contrat. L'équipe RH en a été informée.</p>
+      </div>
+
+      <!-- ══ ÉTAT : expiré ══ -->
+      <div class="sign-card sign-done sign-done--muted" *ngIf="contract.status === 'EXPIRED'">
+        <div class="done-check done-check--muted">⏱</div>
+        <h1>Lien expiré</h1>
+        <p>Le délai de signature est dépassé. Contactez votre recruteur pour un nouveau lien.</p>
+      </div>
+
+      <!-- ══ ÉTAT : à signer ══ -->
+      <ng-container *ngIf="isSignable">
+        <div class="sign-card">
+          <span class="sign-eyebrow">Proposition d'embauche</span>
+          <h1>Votre contrat est prêt</h1>
+          <p class="sign-intro">
+            {{ contract.company_name }} vous propose le contrat ci-dessous pour le poste de
+            <strong>{{ contract.job_title }}</strong>. Relisez les termes puis signez en ligne.
+          </p>
+
+          <!-- Récapitulatif des termes -->
+          <div class="terms">
+            <div class="term"><span>Type</span><strong>{{ typeLabel(contract.contract_type) }}</strong></div>
+            <div class="term"><span>Poste</span><strong>{{ contract.position }}</strong></div>
+            <div class="term" *ngIf="contract.department"><span>Département</span><strong>{{ contract.department }}</strong></div>
+            <div class="term term--hi"><span>Salaire mensuel brut</span><strong>{{ contract.salary | number:'1.0-0' }} {{ contract.currency }}</strong></div>
+            <div class="term"><span>Date de début</span><strong>{{ contract.start_date ? (contract.start_date | date:'dd MMMM yyyy') : 'À convenir' }}</strong></div>
+            <div class="term"><span>Période d'essai</span><strong>{{ contract.trial_period_months }} mois</strong></div>
+            <div class="term"><span>Temps de travail</span><strong>{{ contract.weekly_hours }} h / semaine</strong></div>
+            <div class="term" *ngIf="contract.end_date"><span>Date de fin</span><strong>{{ contract.end_date | date:'dd/MM/yyyy' }}</strong></div>
+          </div>
+        </div>
+
+        <!-- Bloc signature -->
+        <div class="sign-card">
+          <h2>Signature électronique</h2>
+          <p class="sign-hint">Dessinez votre signature dans le cadre ci-dessous.</p>
+
+          <div class="pad-wrap">
+            <canvas #pad class="pad"
+                    (mousedown)="startDraw($event)" (mousemove)="moveDraw($event)"
+                    (mouseup)="endDraw()" (mouseleave)="endDraw()"
+                    (touchstart)="startDraw($event)" (touchmove)="moveDraw($event)"
+                    (touchend)="endDraw()"></canvas>
+            <span class="pad-placeholder" *ngIf="!hasDrawn">✍️ Signez ici</span>
+            <button type="button" class="pad-clear" (click)="clearPad()" *ngIf="hasDrawn">Effacer</button>
+          </div>
+
+          <div class="field">
+            <label>Nom complet du signataire</label>
+            <input type="text" [(ngModel)]="signerName" name="signerName" placeholder="Votre nom complet">
+          </div>
+
+          <label class="consent">
+            <input type="checkbox" [(ngModel)]="consent" name="consent">
+            <span>Je reconnais avoir lu les termes du contrat et j'accepte de le signer
+              électroniquement. Cette signature a valeur d'engagement.</span>
+          </label>
+
+          <p class="sign-error" *ngIf="error">{{ error }}</p>
+
+          <div class="sign-actions">
+            <button class="btn-sign" [disabled]="!canSubmit" (click)="sign()">
+              {{ submitting ? 'Signature…' : '✍️ Signer le contrat' }}
+            </button>
+            <button class="btn-decline" (click)="showDecline = true" [disabled]="submitting">
+              Décliner
+            </button>
+          </div>
+
+          <p class="legal">
+            🔒 Signature horodatée et scellée par empreinte cryptographique (SHA-256).
+            Un certificat de signature sera joint au contrat.
+          </p>
+        </div>
+      </ng-container>
+    </ng-container>
+  </div>
+
+  <!-- Modale refus -->
+  <div class="modal-overlay" *ngIf="showDecline" (click)="showDecline = false"></div>
+  <div class="decline-modal" *ngIf="showDecline">
+    <h3>Décliner ce contrat ?</h3>
+    <p>Vous pouvez indiquer un motif (optionnel).</p>
+    <textarea [(ngModel)]="declineReason" rows="3" placeholder="Motif (optionnel)…"></textarea>
+    <div class="decline-actions">
+      <button class="btn-ghost" (click)="showDecline = false">Annuler</button>
+      <button class="btn-decline-confirm" (click)="confirmDecline()" [disabled]="submitting">
+        Confirmer le refus
+      </button>
+    </div>
+  </div>
+</div>

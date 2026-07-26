@@ -1,0 +1,180 @@
+
+    * { box-sizing: border-box; }
+
+    .footer {
+      background: linear-gradient(180deg,
+        rgba(5, 16, 14, 0.9) 0%,
+        rgba(4, 12, 10, 0.99) 100%
+      );
+      border-top: 1px solid rgba(52, 211, 153, 0.12);
+      color: rgba(255, 255, 255, 0.8);
+      margin-top: 0;
+      /* Le footer reste sombre dans les deux thèmes : on surcharge les jetons
+         globaux en clair, sinon les règles globales
+         `.layout-wrapper h3/p { color: var(--fo-…) !important }` rendent les
+         titres et paragraphes en sombre (illisibles) en mode clair. */
+      --fo-heading: #fff;
+      --fo-ink: #f4fbfb;
+      --fo-muted: rgba(233, 240, 240, .72);
+      --fo-ink-faint: rgba(233, 240, 240, .5);
+    }
+
+    .footer-container {
+      max-width: var(--fo-container, 1400px);
+      margin: 0 auto;
+      padding: 3rem var(--fo-gutter, 2rem);
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+      gap: 2rem;
+    }
+
+    .footer-section h3 {
+      margin: 0 0 1rem 0;
+      color: white;
+      font-size: 1.1rem;
+      font-weight: 600;
+    }
+
+    .footer-section p {
+      margin: 0;
+      font-size: 0.9rem;
+      line-height: 1.6;
+    }
+
+    .footer-section ul {
+      list-style: none;
+      margin: 0;
+      padding: 0;
+    }
+
+    .footer-section ul li {
+      margin-bottom: 0.75rem;
+    }
+
+    .footer-section a {
+      color: rgba(255, 255, 255, 0.7);
+      text-decoration: none;
+      font-size: 0.95rem;
+      transition: all 0.2s;
+    }
+
+    .footer-section a:hover {
+      color: white;
+    }
+
+    .contact-list {
+      display: flex;
+      flex-direction: column;
+      gap: 0.75rem;
+    }
+
+    .contact-list li {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      margin: 0;
+    }
+
+    .icon {
+      font-size: 1.2rem;
+    }
+
+    .contact-list span {
+      font-size: 0.9rem;
+    }
+
+    .social-links {
+      display: flex;
+      gap: 1rem;
+    }
+
+    .social-link {
+      width: 40px;
+      height: 40px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: rgba(255, 255, 255, 0.08);
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      border-radius: 8px;
+      color: rgba(255, 255, 255, 0.7);
+      transition: all 0.2s;
+    }
+
+    .social-link:hover {
+      background: rgba(255, 255, 255, 0.12);
+      color: white;
+      border-color: rgba(255, 255, 255, 0.2);
+    }
+
+    .footer-bottom {
+      max-width: var(--fo-container, 1400px);
+      margin: 0 auto;
+      padding: 1.5rem var(--fo-gutter, 2rem);
+      border-top: 1px solid rgba(255, 255, 255, 0.08);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 0.85rem;
+      color: rgba(255, 255, 255, 0.6);
+    }
+
+    .footer-bottom p {
+      margin: 0;
+    }
+
+    .footer-links {
+      display: flex;
+      gap: 1rem;
+      align-items: center;
+    }
+
+    .divider {
+      color: rgba(255, 255, 255, 0.3);
+    }
+
+    .footer-links a {
+      color: rgba(255, 255, 255, 0.6);
+      text-decoration: none;
+      transition: color 0.2s;
+    }
+
+    .footer-links a:hover {
+      color: rgba(255, 255, 255, 0.9);
+    }
+
+    @media (max-width: 768px) {
+      /* Gouttière horizontale toujours issue du token, sinon le footer
+         se désaligne du header et du contenu sur mobile. */
+      .footer-container {
+        padding: 2rem var(--fo-gutter, 1rem);
+        gap: 1.5rem;
+      }
+
+      .footer-bottom {
+        flex-direction: column;
+        gap: 1rem;
+        text-align: center;
+        padding: 1.5rem var(--fo-gutter, 1rem);
+      }
+
+      .footer-links {
+        justify-content: center;
+      }
+    }
+
+    @media (max-width: 480px) {
+      .footer-container {
+        padding: 1.5rem var(--fo-gutter, 1rem);
+        grid-template-columns: 1fr;
+      }
+
+      .footer-section h3 {
+        font-size: 1rem;
+      }
+
+      .footer-bottom {
+        padding: 1rem var(--fo-gutter, 1rem);
+        font-size: 0.8rem;
+      }
+    }

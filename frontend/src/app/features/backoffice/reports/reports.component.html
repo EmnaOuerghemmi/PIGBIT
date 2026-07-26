@@ -1,0 +1,189 @@
+<div class="module-page">
+
+  <header class="page-header">
+    <div class="page-header__intro">
+      <span class="eyebrow">Pilotage</span>
+      <h1>Rapports de recrutement</h1>
+      <p>Générez des rapports rédigés par l'agent IA, archivez-les et exportez-les en PDF.</p>
+    </div>
+  </header>
+
+  <div class="state-banner state-banner--error" *ngIf="error">{{ error }}</div>
+
+  <!-- ── KPIs LIVE ─────────────────────────────────────────── -->
+  <section class="kpi-grid" *ngIf="summary">
+    <article class="kpi-card" data-tone="gold">
+      <div class="kpi-card__top">
+        <div class="kpi-card__icon">
+          <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 7V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v2"/>
+          </svg>
+        </div>
+        <span class="kpi-card__delta">{{ summary.active_jobs }} actives</span>
+      </div>
+      <div class="kpi-card__body">
+        <p class="kpi-card__value">{{ summary.total_jobs }}</p>
+        <p class="kpi-card__label">Offres publiées</p>
+      </div>
+    </article>
+
+    <article class="kpi-card" data-tone="info">
+      <div class="kpi-card__top">
+        <div class="kpi-card__icon">
+          <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/>
+          </svg>
+        </div>
+        <span class="kpi-card__delta">Total</span>
+      </div>
+      <div class="kpi-card__body">
+        <p class="kpi-card__value">{{ summary.total_applications }}</p>
+        <p class="kpi-card__label">Candidatures reçues</p>
+      </div>
+    </article>
+
+    <article class="kpi-card" data-tone="success">
+      <div class="kpi-card__top">
+        <div class="kpi-card__icon">
+          <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/>
+          </svg>
+        </div>
+        <span class="kpi-card__delta">Taux</span>
+      </div>
+      <div class="kpi-card__body">
+        <p class="kpi-card__value">{{ summary.acceptance_rate }}%</p>
+        <p class="kpi-card__label">Taux d'acceptation</p>
+      </div>
+    </article>
+
+    <article class="kpi-card" data-tone="violet">
+      <div class="kpi-card__top">
+        <div class="kpi-card__icon">
+          <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01z"/>
+          </svg>
+        </div>
+        <span class="kpi-card__delta">IA</span>
+      </div>
+      <div class="kpi-card__body">
+        <p class="kpi-card__value">{{ summary.average_score ?? '—' }}</p>
+        <p class="kpi-card__label">Score IA moyen</p>
+      </div>
+    </article>
+  </section>
+
+  <!-- ── GÉNÉRATION (AGENT) ────────────────────────────────── -->
+  <section class="surface generate-bar">
+    <div class="generate-bar__text">
+      <h2>Générer un rapport</h2>
+      <p>L'agent de reporting rédige une synthèse, des points clés et des recommandations à partir des KPIs du moment.</p>
+    </div>
+    <form class="generate-bar__form" (submit)="generate(); $event.preventDefault()">
+      <input type="text" placeholder="Titre du rapport (optionnel)" [(ngModel)]="newTitle" name="newTitle" maxlength="200">
+      <button type="submit" [disabled]="generating">
+        {{ generating ? 'Génération…' : '🤖 Générer le rapport' }}
+      </button>
+    </form>
+  </section>
+
+  <!-- ── LISTE PAGINÉE ─────────────────────────────────────── -->
+  <section class="surface">
+    <div class="surface__head">
+      <h2>Rapports archivés</h2>
+      <span class="surface__hint">{{ total }} rapport(s) — cliquez sur une ligne pour la synthèse complète</span>
+    </div>
+
+    <div class="state-banner" *ngIf="loading">Chargement…</div>
+
+    <div class="table-wrap" *ngIf="!loading">
+      <table class="data-table">
+        <thead>
+          <tr>
+            <th>Titre</th>
+            <th>Type</th>
+            <th>Généré par</th>
+            <th>Date</th>
+            <th class="th-actions">Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          <ng-container *ngFor="let r of reports; trackBy: trackReport">
+            <tr class="report-row" (click)="toggleDetail(r)" [class.report-row--open]="expandedId === r.id">
+              <td class="report-title">
+                <span class="chevron" [class.chevron--open]="expandedId === r.id">▸</span>
+                <ng-container *ngIf="renamingId !== r.id">{{ r.title || 'Sans titre' }}</ng-container>
+                <span *ngIf="renamingId === r.id" class="rename-box" (click)="$event.stopPropagation()">
+                  <input type="text" [(ngModel)]="renameValue" name="rename" maxlength="200"
+                         (keyup.enter)="confirmRename(r, $event)" (keyup.escape)="cancelRename($event)">
+                  <button type="button" class="icon-btn icon-btn--ok" title="Valider" (click)="confirmRename(r, $event)">✓</button>
+                  <button type="button" class="icon-btn" title="Annuler" (click)="cancelRename($event)">✕</button>
+                </span>
+              </td>
+              <td><span class="type-pill">{{ r.report_type }}</span></td>
+              <td>
+                <span class="agent-pill" [attr.data-agent]="r.data.report?.generated_by || 'deterministic'">
+                  {{ r.data.report?.generated_by === 'claude' ? '🤖 Claude' : '⚙️ Agent' }}
+                </span>
+              </td>
+              <td>{{ r.created_at | date:'dd/MM/yyyy HH:mm' }}</td>
+              <td class="row-actions">
+                <button type="button" class="icon-btn" title="Renommer" (click)="startRename(r, $event)">✏️</button>
+                <button type="button" class="icon-btn" title="Télécharger le PDF"
+                        [disabled]="downloadingId === r.id" (click)="downloadPdf(r, $event)">
+                  {{ downloadingId === r.id ? '⏳' : '📄' }}
+                </button>
+                <button type="button" class="icon-btn icon-btn--danger" title="Supprimer" (click)="remove(r, $event)">✕</button>
+              </td>
+            </tr>
+
+            <!-- Détail du rapport -->
+            <tr *ngIf="expandedId === r.id" class="detail-row">
+              <td colspan="5">
+                <div class="report-detail">
+                  <div class="report-detail__section" *ngIf="r.data.report?.narrative">
+                    <h4>Synthèse</h4>
+                    <p>{{ r.data.report?.narrative }}</p>
+                  </div>
+
+                  <div class="report-detail__cols">
+                    <div class="report-detail__section" *ngIf="r.data.report?.highlights?.length">
+                      <h4>Points clés</h4>
+                      <ul>
+                        <li *ngFor="let h of r.data.report?.highlights">{{ h }}</li>
+                      </ul>
+                    </div>
+                    <div class="report-detail__section" *ngIf="r.data.report?.recommendations?.length">
+                      <h4>Recommandations</h4>
+                      <ul class="recs">
+                        <li *ngFor="let rec of r.data.report?.recommendations">{{ rec }}</li>
+                      </ul>
+                    </div>
+                  </div>
+
+                  <div class="report-detail__section">
+                    <h4>Candidatures par statut</h4>
+                    <div class="status-chips">
+                      <span class="status-chip" *ngFor="let s of statusEntries(r)">
+                        {{ s.label }} <strong>{{ s.count }}</strong>
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              </td>
+            </tr>
+          </ng-container>
+
+          <tr *ngIf="!reports.length">
+            <td colspan="5" class="empty-cell">Aucun rapport archivé — générez-en un ci-dessus.</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <app-pagination *ngIf="!loading && total > 0"
+      [currentPage]="page" [totalPages]="pages" [total]="total" [pageSize]="pageSize"
+      (pageChange)="onPageChange($event)" (pageSizeChange)="onPageSizeChange($event)">
+    </app-pagination>
+  </section>
+</div>

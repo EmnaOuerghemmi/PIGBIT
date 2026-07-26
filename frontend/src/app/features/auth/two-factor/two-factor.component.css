@@ -1,0 +1,142 @@
+/* ============================================================
+   DOUBLE AUTHENTIFICATION
+   ------------------------------------------------------------
+   Conçu pour s'insérer dans la page profil du frontoffice comme
+   dans le backoffice : les couleurs dérivent des jetons de thème
+   globaux (--fo-* côté frontoffice, --c-* côté backoffice), avec
+   des valeurs de repli neutres si aucun n'est défini.
+   ============================================================ */
+* { box-sizing: border-box; }
+
+.tfa {
+  --tfa-ink:    var(--fo-ink, var(--c-ink, #0b2a30));
+  --tfa-muted:  var(--fo-ink-muted, var(--c-muted, #6b7b7b));
+  --tfa-line:   var(--fo-hairline-soft, var(--c-line, rgba(11, 42, 48, .12)));
+  --tfa-panel:  var(--fo-surface, var(--c-surface, #fff));
+  --tfa-accent: var(--c-gold, #10b981);
+
+  display: grid;
+  gap: 1rem;
+  padding: 1.4rem;
+  border: 1px solid var(--tfa-line);
+  border-radius: 16px;
+  background: var(--tfa-panel);
+  color: var(--tfa-ink);
+}
+
+/* ── En-tête ── */
+.tfa__head {
+  display: flex; align-items: flex-start; justify-content: space-between;
+  gap: 1rem; flex-wrap: wrap;
+}
+.tfa__eyebrow {
+  display: block; margin-bottom: 2px;
+  font-size: .68rem; font-weight: 800; letter-spacing: .12em;
+  text-transform: uppercase; color: var(--tfa-accent);
+}
+.tfa__head h3 { margin: 0 0 .3rem; font-size: 1.05rem; font-weight: 800; }
+.tfa__head p  { margin: 0; max-width: 46ch; font-size: .85rem; line-height: 1.55; color: var(--tfa-muted); }
+
+.tfa__badge {
+  flex-shrink: 0;
+  padding: 4px 12px; border-radius: 999px;
+  font-size: .7rem; font-weight: 800; letter-spacing: .04em; text-transform: uppercase;
+  background: rgba(120, 130, 130, .14); color: var(--tfa-muted);
+}
+.tfa__badge.is-on { background: rgba(16, 185, 129, .14); color: #0d9668; }
+
+/* ── Messages ── */
+.tfa__msg {
+  margin: 0; padding: .6rem .85rem; border-radius: 10px;
+  font-size: .84rem; font-weight: 600;
+}
+.tfa__msg--error { background: rgba(212, 91, 91, .12); color: #9b2f2f; }
+.tfa__msg--ok    { background: rgba(16, 185, 129, .12); color: #0d9668; }
+
+.tfa__block { display: grid; gap: .9rem; justify-items: start; }
+.tfa__hint  { margin: 0; font-size: .82rem; line-height: 1.55; color: var(--tfa-muted); }
+
+/* ── Étapes ── */
+.tfa__steps {
+  margin: 0; padding-left: 1.2rem;
+  display: grid; gap: 1.4rem;
+  font-size: .88rem; line-height: 1.6;
+}
+.tfa__steps > li { padding-left: .2rem; }
+.tfa__steps strong { display: block; margin-bottom: .5rem; }
+
+/* ── QR code ── */
+.tfa__qr {
+  display: inline-block; padding: 10px;
+  border: 1px solid var(--tfa-line); border-radius: 12px; background: #fff;
+}
+.tfa__qr img { display: block; width: 200px; height: 200px; }
+.tfa__qr-fallback { margin: 0; padding: 1.5rem; font-size: .8rem; color: var(--tfa-muted); }
+
+.tfa__manual { margin-top: .6rem; font-size: .8rem; }
+.tfa__manual summary { cursor: pointer; color: var(--tfa-muted); }
+.tfa__secret {
+  display: inline-block; margin-top: .5rem; padding: .5rem .8rem;
+  border-radius: 8px; background: rgba(120, 130, 130, .12);
+  font-family: 'JetBrains Mono', Consolas, monospace;
+  font-size: .82rem; letter-spacing: .08em; word-break: break-all;
+}
+
+/* ── Codes de secours ── */
+.tfa__warn {
+  margin: 0 0 .7rem; padding: .6rem .85rem;
+  border-left: 3px solid #d7903a; border-radius: 8px;
+  background: rgba(215, 144, 58, .10);
+  font-size: .82rem; line-height: 1.55;
+}
+.tfa__codes {
+  list-style: none; margin: 0 0 .7rem; padding: .8rem;
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); gap: .45rem;
+  border: 1px solid var(--tfa-line); border-radius: 10px;
+  background: rgba(120, 130, 130, .06);
+}
+.tfa__codes code {
+  font-family: 'JetBrains Mono', Consolas, monospace;
+  font-size: .82rem; letter-spacing: .06em;
+}
+
+.tfa__check {
+  display: flex; align-items: center; gap: .5rem;
+  margin-top: .7rem; font-size: .82rem; cursor: pointer;
+}
+
+/* ── Saisie du code ── */
+.tfa__confirm { display: flex; gap: .6rem; align-items: center; flex-wrap: wrap; }
+.tfa__code-input {
+  width: 8.5rem; padding: .6rem .8rem;
+  border: 1px solid var(--tfa-line); border-radius: 10px;
+  background: var(--fo-field, #fff); color: var(--tfa-ink);
+  font-family: 'JetBrains Mono', Consolas, monospace;
+  font-size: 1.05rem; font-weight: 700; letter-spacing: .28em; text-align: center;
+}
+.tfa__code-input:focus {
+  outline: none;
+  border-color: var(--tfa-accent);
+  box-shadow: 0 0 0 3px rgba(16, 185, 129, .16);
+}
+
+/* ── Boutons ── */
+.tfa__btn {
+  padding: .6rem 1.2rem; border: 1px solid transparent; border-radius: 10px;
+  font: inherit; font-size: .85rem; font-weight: 700; cursor: pointer;
+  transition: background-color .2s, border-color .2s, color .2s;
+}
+.tfa__btn:disabled { opacity: .5; cursor: not-allowed; }
+.tfa__btn--primary { background: var(--tfa-accent); color: #fff; }
+.tfa__btn--primary:hover:not(:disabled) { background: #0ea371; }
+.tfa__btn--ghost {
+  background: transparent; border-color: var(--tfa-line); color: var(--tfa-muted);
+}
+.tfa__btn--ghost:hover { color: var(--tfa-ink); border-color: var(--tfa-muted); }
+.tfa__btn--danger { background: rgba(212, 91, 91, .12); border-color: #d45b5b; color: #9b2f2f; }
+.tfa__btn--danger:hover:not(:disabled) { background: #d45b5b; color: #fff; }
+
+@media (max-width: 560px) {
+  .tfa { padding: 1rem; }
+  .tfa__qr img { width: 160px; height: 160px; }
+}

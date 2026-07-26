@@ -1,0 +1,89 @@
+
+    <div class="form-overlay" *ngIf="isOpen" (click)="closeForm()">
+      <div class="side-panel" (click)="$event.stopPropagation()">
+        <div class="panel-header">
+          <h2>{{ isEditing ? 'Modifier' : 'Créer' }} une Offre d'Emploi</h2>
+          <button (click)="closeForm()" class="btn-close">✕</button>
+        </div>
+
+        <form (ngSubmit)="submitForm()" class="form-content">
+          <div class="form-group">
+            <label for="title">Titre du Poste *</label>
+            <input
+              id="title"
+              type="text"
+              [(ngModel)]="formData.title"
+              name="title"
+              placeholder="Ex: Senior Developer"
+              required
+              class="form-input"
+            />
+          </div>
+
+          <div class="form-group">
+            <label for="description">Description *</label>
+            <textarea
+              id="description"
+              [(ngModel)]="formData.description"
+              name="description"
+              placeholder="Décrivez le poste, les responsabilités..."
+              rows="5"
+              required
+              class="form-textarea"
+            ></textarea>
+          </div>
+
+          <div class="form-row">
+            <div class="form-group">
+              <label for="salary_min">Salaire Min (TND) *</label>
+              <input
+                id="salary_min"
+                type="number"
+                [(ngModel)]="formData.salary_min"
+                name="salary_min"
+                placeholder="1000"
+                required
+                class="form-input"
+              />
+            </div>
+            <div class="form-group">
+              <label for="salary_max">Salaire Max (TND) *</label>
+              <input
+                id="salary_max"
+                type="number"
+                [(ngModel)]="formData.salary_max"
+                name="salary_max"
+                placeholder="2000"
+                required
+                class="form-input"
+              />
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label for="is_active">
+              <input
+                id="is_active"
+                type="checkbox"
+                [(ngModel)]="formData.is_active"
+                name="is_active"
+                class="checkbox"
+              />
+              <span>Offre Active</span>
+            </label>
+          </div>
+
+          <div class="form-actions">
+            <button type="submit" class="btn-primary" [disabled]="isSubmitting">
+              {{ isSubmitting ? 'Enregistrement...' : 'Enregistrer' }}
+            </button>
+            <button type="button" (click)="closeForm()" class="btn-secondary">
+              Annuler
+            </button>
+          </div>
+
+          <p *ngIf="successMsg" class="success-msg">{{ successMsg }}</p>
+          <p *ngIf="errorMsg" class="error-msg">{{ errorMsg }}</p>
+        </form>
+      </div>
+    </div>

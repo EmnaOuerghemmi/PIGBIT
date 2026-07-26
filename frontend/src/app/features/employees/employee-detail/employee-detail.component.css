@@ -1,0 +1,161 @@
+/* ============================================================
+   EMPLOYÉS — DÉTAIL (design system backoffice)
+   ============================================================ */
+
+* { box-sizing: border-box; }
+
+.module-page {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-6);
+  color: var(--c-ink);
+  font-family: var(--font-sans);
+  max-width: 860px;
+}
+
+.page-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  gap: var(--s-4);
+  flex-wrap: wrap;
+}
+.eyebrow {
+  display: inline-block;
+  font-size: var(--fs-2xs);
+  font-weight: 700;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--c-gold-2);
+  margin-bottom: var(--s-2);
+}
+.page-header h1 {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: var(--fs-display);
+  font-weight: 800;
+  letter-spacing: -0.025em;
+  line-height: 1.1;
+}
+.header-actions { display: flex; gap: var(--s-3); }
+
+.btn-primary, .btn-ghost, .btn-danger {
+  display: inline-block;
+  padding: .6rem 1.15rem;
+  border-radius: var(--r-md, 12px);
+  font-weight: 700;
+  font-size: var(--fs-sm);
+  text-decoration: none;
+  border: none;
+  cursor: pointer;
+  transition: all .15s ease;
+}
+.btn-primary { background: var(--c-gold, #10B981); color: #fff; }
+.btn-primary:hover { filter: brightness(1.06); transform: translateY(-1px); }
+.btn-ghost {
+  background: transparent;
+  color: var(--c-ink-soft, #3D4F4F);
+  border: 1px solid var(--c-line-strong, #DACFB8);
+}
+.btn-ghost:hover { background: var(--c-surface-2, #FBF8F1); }
+.btn-danger { background: #FDEBEA; color: #A13B32; border: 1px solid #F2C4C0; }
+.btn-danger:hover { background: #A13B32; color: #fff; }
+
+.state-banner {
+  padding: var(--s-4) var(--s-5);
+  border-radius: var(--r-md, 16px);
+  background: var(--c-surface-2, #FBF8F1);
+  border: 1px solid var(--c-line, #ECE3CF);
+  color: var(--c-muted);
+}
+.state-banner--error { background: #FDEBEA; border-color: #F2C4C0; color: #A13B32; }
+
+.surface {
+  background: var(--c-surface);
+  border: 1px solid var(--c-line);
+  border-radius: var(--r-2xl);
+  box-shadow: var(--sh-sm);
+  padding: var(--s-7);
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-6);
+}
+
+/* ─── EN-TÊTE PROFIL ────────────────────────────────────── */
+.profile-head { display: flex; align-items: center; gap: var(--s-5); }
+.avatar--lg {
+  width: 72px; height: 72px;
+  border-radius: 50%;
+  background: var(--c-gold-soft, #F6EBD3);
+  color: var(--c-gold-2, #A97B23);
+  display: grid; place-items: center;
+  font-weight: 800;
+  font-size: 1.5rem;
+  letter-spacing: .02em;
+  flex-shrink: 0;
+}
+.profile-head__id h2 {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: var(--fs-h2);
+  font-weight: 800;
+  letter-spacing: -0.02em;
+}
+.profile-head__id p { margin: .2rem 0 .5rem; color: var(--c-muted); }
+
+.status-badge {
+  padding: 3px 10px;
+  border-radius: var(--r-pill, 999px);
+  font-size: var(--fs-2xs);
+  font-weight: 700;
+  letter-spacing: .04em;
+  text-transform: uppercase;
+}
+.status-badge[data-status="active"]   { background: var(--c-success-soft, #E1F2E8); color: var(--c-success, #3DA76F); }
+.status-badge[data-status="on-leave"] { background: #FBE7BD; color: #A97B23; }
+.status-badge[data-status="inactive"] { background: #F0EEE9; color: var(--c-muted, #788888); }
+
+.dept-pill {
+  padding: 3px 10px;
+  border-radius: var(--r-pill, 999px);
+  background: var(--c-info-soft, #E3EEF6);
+  color: var(--c-info, #2E6E8E);
+  font-size: var(--fs-2xs);
+  font-weight: 700;
+}
+
+/* ─── GRILLE DE DÉTAILS ─────────────────────────────────── */
+.detail-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: var(--s-4);
+  margin: 0;
+}
+.detail-item {
+  padding: var(--s-4);
+  background: var(--c-surface-2, #FBF8F1);
+  border: 1px solid var(--c-line, #ECE3CF);
+  border-radius: var(--r-xl, 16px);
+}
+.detail-item dt {
+  font-size: var(--fs-2xs);
+  font-weight: 700;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+  color: var(--c-muted);
+  margin-bottom: .35rem;
+}
+.detail-item dd { margin: 0; font-size: var(--fs-body); font-weight: 600; color: var(--c-ink); }
+
+/* ─── ZONE DANGER ───────────────────────────────────────── */
+.danger-zone {
+  border-top: 1px dashed var(--c-line-strong, #DACFB8);
+  padding-top: var(--s-5);
+  display: flex;
+  justify-content: flex-end;
+}
+
+@media (max-width: 640px) {
+  .surface { padding: var(--s-5); }
+  .profile-head { flex-direction: column; align-items: flex-start; }
+}

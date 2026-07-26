@@ -1,0 +1,174 @@
+<div class="register-page">
+  <div class="register-shell">
+    <section class="register-visual" aria-label="PIQBIT">
+      <div class="brand-mark">
+        <img src="/logo.png" alt="PIQBIT Logo" class="piqbit-logo" />
+        <div class="brand-content">
+          <div class="eyes-container">
+            <div class="eye">
+              <div class="iris" #leftEye [ngStyle]="leftEyeStyle"></div>
+            </div>
+            <div class="eye">
+              <div class="iris" #rightEye [ngStyle]="rightEyeStyle"></div>
+            </div>
+          </div>
+          <h1 class="brand-name">PIQBIT</h1>
+        </div>
+      </div>
+
+      <div class="visual-copy">
+        <p class="eyebrow">Nouveau workspace</p>
+        <h2>Creer un compte professionnel en quelques secondes.</h2>
+        <p>Un acces clair pour rejoindre votre espace RH, collaborer et suivre vos operations.</p>
+      </div>
+    </section>
+
+    <section class="register-card" aria-label="Inscription">
+      <div class="card-header">
+        <p class="brand-tagline">Creez votre compte professionnel</p>
+        <h2>Inscription</h2>
+      </div>
+
+      <form (ngSubmit)="register()" novalidate>
+        <div class="error-alert" *ngIf="errorMessage">
+          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>
+          </svg>
+          {{ errorMessage }}
+        </div>
+
+        <div class="form-grid">
+          <div class="field">
+            <label>Prenom</label>
+            <div class="input-wrap">
+              <svg class="field-icon" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/>
+              </svg>
+              <input type="text" [(ngModel)]="firstName" name="firstName" placeholder="Jean" required />
+            </div>
+          </div>
+
+          <div class="field">
+            <label>Nom</label>
+            <div class="input-wrap">
+              <svg class="field-icon" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/>
+              </svg>
+              <input type="text" [(ngModel)]="lastName" name="lastName" placeholder="Dupont" required />
+            </div>
+          </div>
+
+          <div class="field">
+            <label>Utilisateur</label>
+            <div class="input-wrap">
+              <svg class="field-icon" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/>
+              </svg>
+              <input type="text" [(ngModel)]="username" name="username" placeholder="jean.dupont" autocomplete="username" required />
+            </div>
+          </div>
+
+          <div class="field">
+            <label>Email</label>
+            <div class="input-wrap">
+              <svg class="field-icon" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/>
+                <polyline points="22,6 12,13 2,6"/>
+              </svg>
+              <input type="email" [(ngModel)]="email" name="email" placeholder="vous@piqbit.tn" autocomplete="email" required />
+            </div>
+          </div>
+        </div>
+
+        <div class="field">
+          <label>Role / Profil</label>
+          <div class="input-wrap select-wrap">
+            <svg class="field-icon" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/>
+            </svg>
+            <select [(ngModel)]="role" name="role" required>
+              <option value="" disabled>Selectionner un role...</option>
+              <option *ngFor="let r of roles" [value]="r.value">{{ r.label }}</option>
+            </select>
+            <svg class="select-arrow" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <polyline points="6 9 12 15 18 9"></polyline>
+            </svg>
+          </div>
+        </div>
+
+        <div class="form-grid">
+          <div class="field">
+            <label>Mot de passe</label>
+            <div class="input-wrap">
+              <svg class="field-icon" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
+                <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+              </svg>
+              <input [type]="showPassword ? 'text' : 'password'" [(ngModel)]="password" name="password" placeholder="Mot de passe" required />
+              <button type="button" class="eye-toggle" (click)="showPassword = !showPassword" aria-label="Afficher ou masquer le mot de passe">
+                <svg *ngIf="!showPassword" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/>
+                </svg>
+                <svg *ngIf="showPassword" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94"/>
+                  <path d="M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19"/>
+                  <line x1="1" y1="1" x2="23" y2="23"/>
+                </svg>
+              </button>
+            </div>
+          </div>
+
+          <div class="field">
+            <label>Confirmation</label>
+            <div class="input-wrap" [class.mismatch]="confirmPassword && password !== confirmPassword">
+              <svg class="field-icon" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+              </svg>
+              <input [type]="showConfirm ? 'text' : 'password'" [(ngModel)]="confirmPassword" name="confirmPassword" placeholder="Confirmer" required />
+              <button type="button" class="eye-toggle" (click)="showConfirm = !showConfirm" aria-label="Afficher ou masquer la confirmation">
+                <svg *ngIf="!showConfirm" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/>
+                </svg>
+                <svg *ngIf="showConfirm" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94"/>
+                  <path d="M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19"/>
+                  <line x1="1" y1="1" x2="23" y2="23"/>
+                </svg>
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <div class="strength-bar" *ngIf="password">
+          <div class="strength-track">
+            <div class="strength-fill" [style.width.%]="passwordStrength * 20" [class]="'s' + passwordStrength"></div>
+          </div>
+          <span class="strength-label" [class]="'s' + passwordStrength">{{ strengthLabel }}</span>
+        </div>
+        <p class="password-hint" *ngIf="!confirmPassword || password === confirmPassword">8 caracteres min. avec majuscule, minuscule, chiffre et caractere special.</p>
+        <p class="mismatch-hint" *ngIf="confirmPassword && password !== confirmPassword">Les mots de passe ne correspondent pas.</p>
+
+        <button type="submit" class="submit-btn" [disabled]="isLoading">
+          <span *ngIf="!isLoading" class="btn-inner">
+            Creer mon compte
+            <svg class="arrow-icon" xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+              <line x1="5" y1="12" x2="19" y2="12"/>
+              <polyline points="12 5 19 12 12 19"/>
+            </svg>
+          </span>
+          <span *ngIf="isLoading" class="btn-loading">
+            <span class="spinner"></span>
+            Inscription en cours...
+          </span>
+        </button>
+
+        <p class="login-link">
+          Deja un compte ?
+          <a routerLink="/login">Se connecter</a>
+        </p>
+      </form>
+
+      <p class="footer-text">&copy; {{ currentYear }} PIQBIT - Tunisie, Afrique &amp; Europe</p>
+    </section>
+  </div>
+</div>

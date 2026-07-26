@@ -1,0 +1,196 @@
+<div class="recruit">
+
+  <!-- ── Header ── -->
+  <header class="rec-head">
+    <div>
+      <span class="eyebrow">Recrutement intelligent</span>
+      <h1>Pipeline IA</h1>
+      <p>Analysez les CV, classez les candidats et déclenchez le workflow en un clic.</p>
+    </div>
+  </header>
+
+  <!-- ── KPI strip ── -->
+  <section class="kpi-strip" *ngIf="summary">
+    <div class="kpi">
+      <span class="kpi-val">{{ summary.active_jobs }}</span>
+      <span class="kpi-lbl">Offres actives</span>
+    </div>
+    <div class="kpi">
+      <span class="kpi-val">{{ summary.total_applications }}</span>
+      <span class="kpi-lbl">Candidatures</span>
+    </div>
+    <div class="kpi">
+      <span class="kpi-val">{{ summary.average_score !== null ? (summary.average_score | number:'1.0-0') : '—' }}</span>
+      <span class="kpi-lbl">Score moyen IA</span>
+    </div>
+    <div class="kpi">
+      <span class="kpi-val">{{ summary.acceptance_rate }}%</span>
+      <span class="kpi-lbl">Taux d'acceptation</span>
+    </div>
+  </section>
+
+  <!-- ── Main grid ── -->
+  <div class="rec-grid">
+
+    <!-- LEFT : job picker -->
+    <aside class="job-rail">
+      <div class="rail-head">
+        <h2>Offres</h2>
+        <span class="pill-count">{{ jobs.length }}</span>
+      </div>
+      <div class="rail-search">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m21 21-3.5-3.5"/></svg>
+        <input type="search" [(ngModel)]="jobSearch" placeholder="Rechercher une offre…" />
+      </div>
+
+      <div class="job-list">
+        <button *ngFor="let j of filteredJobs"
+                type="button"
+                class="job-item"
+                [class.active]="j.id === selectedJobId"
+                (click)="selectJob(j.id)">
+          <span class="job-item__title">{{ j.title }}</span>
+          <span class="job-item__meta">
+            <span class="job-item__count">{{ count(j.id) }} cand.</span>
+            <span class="job-item__dot" [class.on]="j.is_active"></span>
+          </span>
+        </button>
+        <p class="empty" *ngIf="filteredJobs.length === 0">Aucune offre.</p>
+      </div>
+    </aside>
+
+    <!-- RIGHT : selected job + analysis + ranking -->
+    <main class="rec-main">
+
+      <section class="job-panel" *ngIf="selectedJob as job">
+        <div class="job-panel__top">
+          <div>
+            <h2 class="job-panel__title">{{ job.title }}</h2>
+            <div class="job-panel__reqs">
+              <span class="req" *ngIf="job.required_experience_years != null">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+                {{ job.required_experience_years }} ans
+              </span>
+              <span class="req" *ngIf="job.required_education_level">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 10L12 5 2 10l10 5 10-5z"/><path d="M6 12v5c3 2 9 2 12 0v-5"/></svg>
+                {{ eduLabel(job.required_education_level) }}
+              </span>
+              <span class="req req--count">{{ count(job.id) }} candidature(s)</span>
+            </div>
+          </div>
+          <button class="btn-analyze" (click)="analyzeAll()" [disabled]="analyzing || count(job.id) === 0">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M12 2a3 3 0 0 0-3 3v1a3 3 0 0 0-3 3 3 3 0 0 0 0 6 3 3 0 0 0 3 3v1a3 3 0 0 0 6 0v-1a3 3 0 0 0 3-3 3 3 0 0 0 0-6 3 3 0 0 0-3-3V5a3 3 0 0 0-3-3z"/>
+            </svg>
+            {{ analyzing ? 'Analyse…' : 'Analyser tous les CV' }}
+          </button>
+        </div>
+
+        <div class="skills-line" *ngIf="job.required_skills?.length">
+          <span class="skills-cap">Compétences requises</span>
+          <span class="sk-chip" *ngFor="let s of job.required_skills">{{ s }}</span>
+        </div>
+
+        <p class="rec-msg" [attr.data-tone]="messageTone" *ngIf="message">{{ message }}</p>
+      </section>
+
+      <!-- Ranking -->
+      <section class="ranking-card" *ngIf="selectedJobId">
+        <app-candidate-ranking
+          [jobId]="selectedJobId"
+          [refreshTrigger]="rankingRefresh"
+          (rejectCandidate)="onReject($event)"
+          (startNegotiation)="onStartNegotiation($event)"
+          (scheduleInterview)="onScheduleInterview($event)">
+        </app-candidate-ranking>
+      </section>
+
+      <!-- ── Matching sémantique (embeddings + pgvector) ── -->
+      <section class="semantic-card" *ngIf="selectedJobId">
+        <div class="sem-head">
+          <div>
+            <span class="eyebrow">Embeddings</span>
+            <h3>Matching sémantique</h3>
+            <p class="sem-sub">
+              Classement par proximité de sens (pas seulement mots-clés exacts)
+              <span class="sem-badge" *ngIf="semanticStatus"
+                    [class.sem-badge--model]="semanticStatus.effective_backend !== 'hash-v1'">
+                {{ semanticBackendLabel() }}{{ semanticStatus.pgvector ? ' · pgvector' : '' }}
+              </span>
+            </p>
+          </div>
+          <button class="btn-semantic" (click)="runSemanticMatch()" [disabled]="semanticLoading">
+            🧠 {{ semanticLoading ? 'Calcul…' : 'Matching sémantique' }}
+          </button>
+        </div>
+
+        <div class="sem-empty" *ngIf="semanticRan && !semanticLoading && semanticResults.length === 0">
+          Aucun CV indexé — lancez d'abord « Analyser tous les CV » (l'indexation est automatique),
+          ou réindexez via l'API <code>/semantic/reindex</code>.
+        </div>
+
+        <ul class="sem-list" *ngIf="semanticResults.length">
+          <li class="sem-row" *ngFor="let m of semanticResults; let i = index; trackBy: trackMatch">
+            <span class="sem-rank">#{{ i + 1 }}</span>
+            <div class="sem-id">
+              <strong>{{ m.candidate_name }}</strong>
+              <small>
+                {{ m.job_title }}
+                <ng-container *ngIf="m.experience_years != null"> · {{ m.experience_years }} ans</ng-container>
+              </small>
+              <div class="sem-skills">
+                <span class="sem-skill" *ngFor="let s of m.skills.slice(0, 6)">{{ s }}</span>
+              </div>
+            </div>
+            <div class="sem-scores">
+              <div class="sem-score">
+                <div class="sem-bar">
+                  <div class="sem-bar__fill" [attr.data-tone]="semanticTone(m.semantic_score)"
+                       [style.width.%]="m.semantic_score"></div>
+                </div>
+                <span class="sem-score__val">{{ m.semantic_score | number:'1.0-0' }}% sémantique</span>
+              </div>
+              <span class="sem-kw" *ngIf="m.keyword_score != null">
+                mots-clés : {{ m.keyword_score | number:'1.0-0' }}/100
+              </span>
+            </div>
+            <button class="btn-similar" (click)="showSimilar(m)" title="Profils similaires dans toute la CVthèque">
+              👥 Similaires
+            </button>
+          </li>
+        </ul>
+
+        <!-- Panneau candidats similaires -->
+        <div class="similar-panel" *ngIf="similarFor">
+          <div class="similar-panel__head">
+            <h4>Profils similaires à {{ similarFor.candidate_name }}</h4>
+            <button class="similar-close" (click)="closeSimilar()">✕</button>
+          </div>
+          <p class="sem-sub">Recherche vectorielle sur toute la CVthèque, toutes offres confondues.</p>
+
+          <p class="sem-empty" *ngIf="similarLoading">Recherche…</p>
+          <ul class="sem-list" *ngIf="!similarLoading">
+            <li class="sem-row sem-row--compact" *ngFor="let m of similarResults; trackBy: trackMatch">
+              <div class="sem-id">
+                <strong>{{ m.candidate_name }}</strong>
+                <small>{{ m.job_title }} · {{ m.application_status }}</small>
+              </div>
+              <div class="sem-score">
+                <div class="sem-bar">
+                  <div class="sem-bar__fill" [attr.data-tone]="semanticTone(m.semantic_score)"
+                       [style.width.%]="m.semantic_score"></div>
+                </div>
+                <span class="sem-score__val">{{ m.semantic_score | number:'1.0-0' }}%</span>
+              </div>
+            </li>
+            <li class="sem-empty" *ngIf="!similarResults.length">Aucun autre profil comparable indexé.</li>
+          </ul>
+        </div>
+      </section>
+
+      <div class="empty-state" *ngIf="!selectedJobId">
+        <p>Sélectionnez une offre à gauche pour voir le classement IA.</p>
+      </div>
+    </main>
+  </div>
+</div>

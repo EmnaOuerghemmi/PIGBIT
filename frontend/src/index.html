@@ -1,0 +1,42 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>PIQBIT — Plateforme de Recrutement</title>
+  <base href="/">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#2D4040">
+  <link rel="icon" type="image/png" href="/logo.png">
+
+  <!-- Premium type system used by the design tokens (Inter + Plus Jakarta Sans) -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Plus+Jakarta+Sans:wght@500;600;700;800&family=Roboto:wght@300;400;500&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+  <!-- Google Sign-In Script -->
+  <script async defer src="https://accounts.google.com/gsi/client"></script>
+
+  <!--
+    Thème appliqué avant le premier rendu : si on attendait le démarrage
+    d'Angular, une page sombre s'afficherait un instant chez un utilisateur en
+    thème clair. Doit rester synchrone et sans dépendance.
+  -->
+  <script>
+    (function () {
+      try {
+        var saved = localStorage.getItem('piqbit-theme');
+        var theme = saved === 'light' || saved === 'dark'
+          ? saved
+          : (window.matchMedia && window.matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark');
+        document.documentElement.setAttribute('data-theme', theme);
+        document.documentElement.style.colorScheme = theme;
+      } catch (e) {
+        document.documentElement.setAttribute('data-theme', 'dark');
+      }
+    })();
+  </script>
+</head>
+<body class="mat-typography">
+  <app-root></app-root>
+</body>
+</html>

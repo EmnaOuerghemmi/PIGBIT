@@ -1,0 +1,122 @@
+<div class="module-page">
+
+  <header class="page-header">
+    <div class="page-header__intro">
+      <span class="eyebrow">Assistant IA · CAG</span>
+      <h1>Assistant PIQBIT</h1>
+      <p>
+        Réponses <strong>extraites</strong> de la base de connaissances (moteur CAG hors-ligne,
+        sans LLM) — <em>zéro hallucination</em>, chaque réponse est sourcée.
+      </p>
+    </div>
+    <button class="btn-ghost" (click)="toggleKb()">
+      {{ showKb ? '← Retour au chat' : '⚙️ Base de connaissances' }}
+    </button>
+  </header>
+
+  <!-- Bandeau statut -->
+  <div class="cag-status" *ngIf="status">
+    <span class="cag-pill">🧠 {{ status.knowledge_entries }} entrées</span>
+    <span class="cag-pill" [class.cag-pill--model]="status.backend !== 'hash-v1'">
+      {{ status.backend === 'hash-v1' ? 'mode lexical' : 'modèle neuronal' }}
+    </span>
+    <span class="cag-pill">💾 cache : {{ status.answer_cache_size }} réponses</span>
+    <span class="cag-mode">{{ status.mode }}</span>
+  </div>
+
+  <!-- ═══════════ CHAT ═══════════ -->
+  <section class="surface chat" *ngIf="!showKb">
+    <div class="chat-log">
+      <div class="msg" *ngFor="let m of messages; trackBy: trackMsg" [attr.data-role]="m.role">
+        <span class="msg-av" *ngIf="m.role === 'assistant'">🤖</span>
+        <div class="msg-bubble">
+          <p class="msg-text">{{ m.text }}</p>
+
+          <!-- Métadonnées réponse assistant -->
+          <div class="msg-meta" *ngIf="m.role === 'assistant' && m.confidence != null">
+            <span class="conf" [attr.data-tone]="confTone(m.confidence)" *ngIf="!m.lowConfidence">
+              Confiance {{ m.confidence | number:'1.0-0' }}%
+            </span>
+            <span class="cache-tag" *ngIf="m.fromCache">⚡ depuis le cache</span>
+          </div>
+
+          <!-- Sources citées -->
+          <div class="msg-sources" *ngIf="m.sources?.length">
+            <span class="sources-cap">Sources :</span>
+            <span class="source-chip" *ngFor="let s of m.sources">
+              {{ s.title }} <small>· {{ s.category }} · {{ s.score | number:'1.0-0' }}%</small>
+            </span>
+          </div>
+        </div>
+      </div>
+
+      <div class="msg" data-role="assistant" *ngIf="asking">
+        <span class="msg-av">🤖</span>
+        <div class="msg-bubble">
+          <span class="typing"><i></i><i></i><i></i></span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Suggestions -->
+    <div class="chat-suggest" *ngIf="messages.length <= 1">
+      <button *ngFor="let s of suggestions" class="suggest-chip" (click)="ask(s)">{{ s }}</button>
+    </div>
+
+    <!-- Saisie -->
+    <form class="chat-input" (submit)="ask(); $event.preventDefault()">
+      <input type="text" [(ngModel)]="question" name="q" [disabled]="asking"
+             placeholder="Posez votre question…" autocomplete="off">
+      <button type="submit" [disabled]="asking || !question.trim()">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+          <line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/>
+        </svg>
+      </button>
+    </form>
+  </section>
+
+  <!-- ═══════════ BASE DE CONNAISSANCES ═══════════ -->
+  <section class="surface" *ngIf="showKb">
+    <div class="surface__head">
+      <h2>Base de connaissances</h2>
+      <span class="surface__hint">{{ entries.length }} entrées — chaque ajout est embeddé et mis en cache automatiquement</span>
+    </div>
+
+    <!-- Ajout -->
+    <form class="kb-form" (submit)="addEntry(); $event.preventDefault()">
+      <div class="kb-form-row">
+        <input type="text" [(ngModel)]="newEntry.title" name="title" placeholder="Question / titre" maxlength="200">
+        <select [(ngModel)]="newEntry.category" name="cat">
+          <option *ngFor="let c of categories" [value]="c">{{ c }}</option>
+        </select>
+      </div>
+      <textarea [(ngModel)]="newEntry.content" name="content" rows="3"
+                placeholder="Réponse / contenu (extrait tel quel lors des réponses)"></textarea>
+      <div class="kb-form-actions">
+        <input type="text" [(ngModel)]="newEntry.source" name="src" placeholder="Source (optionnel)" maxlength="200">
+        <button type="submit" class="btn-primary" [disabled]="saving">
+          {{ saving ? 'Ajout…' : '+ Ajouter' }}
+        </button>
+      </div>
+    </form>
+
+    <div class="state-banner" *ngIf="kbLoading">Chargement…</div>
+
+    <ul class="kb-list" *ngIf="!kbLoading">
+      <li class="kb-item" *ngFor="let e of entries; trackBy: trackEntry">
+        <div class="kb-item__body">
+          <div class="kb-item__head">
+            <strong>{{ e.title }}</strong>
+            <span class="kb-cat">{{ e.category }}</span>
+            <span class="kb-indexed" [class.on]="e.indexed" [title]="e.indexed ? 'Vecteur en cache' : 'Non indexé'">
+              {{ e.indexed ? '● indexé' : '○ non indexé' }}
+            </span>
+          </div>
+          <p>{{ e.content }}</p>
+        </div>
+        <button class="icon-btn icon-btn--danger" title="Supprimer" (click)="deleteEntry(e)">✕</button>
+      </li>
+      <li class="kb-item kb-item--empty" *ngIf="!entries.length">Aucune entrée.</li>
+    </ul>
+  </section>
+</div>

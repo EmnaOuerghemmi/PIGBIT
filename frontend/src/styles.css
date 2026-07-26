@@ -1,0 +1,323 @@
+/* ============================================================
+   GLOBAL STYLES
+   ------------------------------------------------------------
+   The backoffice design system now lives entirely inside the
+   backoffice feature folder. Frontoffice (.layout-wrapper)
+   overrides remain below — same visual language as auth screens.
+   ============================================================ */
+
+/* ============================================================
+   JETONS DE THÈME (clair / sombre)
+   ------------------------------------------------------------
+   Source unique de vérité pour les couleurs du frontoffice.
+   Le thème effectif est porté par `data-theme` sur <html>
+   (posé avant le premier rendu par le script d'index.html).
+   Les composants ne redéfinissent plus de couleurs en dur :
+   leurs tokens locaux dérivent de ceux-ci.
+   ============================================================ */
+:root,
+:root[data-theme="dark"] {
+  --fo-bg-1: #06222a;
+  --fo-bg-2: oklch(19% .03 220);
+  --fo-bg-3: #041a20;
+  --fo-glow-1: oklch(38.751% .06312 188.762 / .30);
+  --fo-glow-2: oklch(60% .118 184.704 / .14);
+
+  --fo-ink: #f4fbfb;
+  --fo-ink-muted: rgba(229, 229, 229, .68);
+  --fo-ink-faint: rgba(229, 229, 229, .45);
+  --fo-heading: #ffffff;
+
+  --fo-hairline: rgba(255, 255, 255, .211);
+  --fo-hairline-soft: rgba(255, 255, 255, .10);
+  --fo-surface: rgba(6, 22, 28, .42);
+  --fo-surface-strong: rgba(8, 22, 19, .97);
+  --fo-surface-alt: rgba(3, 18, 22, .28);
+  --fo-field: rgba(255, 255, 255, .07);
+
+  --fo-header-bg: rgba(4, 26, 32, .82);
+  --fo-shadow: rgba(0, 0, 0, .28);
+  --fo-shadow-strong: rgba(0, 0, 0, .45);
+  --fo-hero-image-opacity: .34;
+}
+
+:root[data-theme="light"] {
+  --fo-bg-1: #eaf4f6;
+  --fo-bg-2: #f6fafb;
+  --fo-bg-3: #dfeef1;
+  --fo-glow-1: oklch(70% .09 188.762 / .16);
+  --fo-glow-2: oklch(75% .10 184.704 / .12);
+
+  --fo-ink: #0b2a30;
+  --fo-ink-muted: rgba(11, 42, 48, .70);
+  --fo-ink-faint: rgba(11, 42, 48, .50);
+  --fo-heading: #062026;
+
+  --fo-hairline: rgba(11, 42, 48, .18);
+  --fo-hairline-soft: rgba(11, 42, 48, .10);
+  --fo-surface: rgba(255, 255, 255, .74);
+  --fo-surface-strong: #ffffff;
+  --fo-surface-alt: rgba(255, 255, 255, .45);
+  --fo-field: rgba(255, 255, 255, .85);
+
+  --fo-header-bg: rgba(255, 255, 255, .85);
+  --fo-shadow: rgba(11, 42, 48, .10);
+  --fo-shadow-strong: rgba(11, 42, 48, .16);
+  /* L'image du hero reste sur un voile sombre : on la garde plus discrète en
+     clair, sinon elle assombrit trop le haut de page. */
+  --fo-hero-image-opacity: .20;
+}
+
+html, body { height: 100%; }
+body {
+  margin: 0;
+  font-family: 'Inter', 'Plus Jakarta Sans', Roboto, "Helvetica Neue", sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+}
+
+/* ============================================================
+   PREMIUM BASE LAYER (applies platform-wide)
+   ============================================================ */
+*, *::before, *::after { box-sizing: border-box; }
+
+html { scroll-behavior: smooth; }
+
+/* Refined typographic rhythm */
+h1, h2, h3, h4, h5 {
+  font-family: 'Plus Jakarta Sans', 'Inter', system-ui, sans-serif;
+  letter-spacing: -0.012em;
+}
+
+/* Accessible, on-brand focus ring (keyboard only) */
+:focus-visible {
+  outline: 2px solid color-mix(in oklch, #2dd4bf 70%, transparent);
+  outline-offset: 2px;
+  border-radius: 6px;
+}
+
+/* Branded text selection */
+::selection {
+  background: color-mix(in oklch, #06b6d4 35%, transparent);
+  color: inherit;
+}
+
+/* Premium custom scrollbars */
+* { scrollbar-width: thin; scrollbar-color: rgba(120,136,136,.45) transparent; }
+*::-webkit-scrollbar { width: 10px; height: 10px; }
+*::-webkit-scrollbar-track { background: transparent; }
+*::-webkit-scrollbar-thumb {
+  background: rgba(120,136,136,.38);
+  border: 2px solid transparent;
+  border-radius: 999px;
+  background-clip: padding-box;
+}
+*::-webkit-scrollbar-thumb:hover { background: rgba(120,136,136,.6); background-clip: padding-box; }
+
+/* Snappier, consistent interactive feedback */
+button, a, .btn, [role="button"] { transition: transform .18s cubic-bezier(.16,1,.3,1), box-shadow .22s ease, background-color .2s ease, border-color .2s ease, color .2s ease; }
+button:not(:disabled):active, .btn:not(:disabled):active { transform: translateY(1px); }
+img { max-width: 100%; }
+
+@media (prefers-reduced-motion: reduce) {
+  html { scroll-behavior: auto; }
+  *, *::before, *::after { animation-duration: .001ms !important; transition-duration: .001ms !important; }
+}
+
+/* ============================================================
+   FRONTOFFICE DESIGN SYSTEM — « Aurora Emerald »
+   Nuit profonde émeraude, verre, halos aurora.
+   Le header est géré PAR le composant header (transparent en
+   haut de page → verre sombre au scroll) : aucun override ici.
+   ============================================================ */
+body .layout-wrapper {
+  --fo-deep: var(--fo-bg-3);
+  --fo-deep-2: var(--fo-bg-1);
+  --fo-teal: #34D399;
+  --fo-cyan: #22D3EE;
+  --fo-emerald: #10B981;
+  --fo-gold: #F5C563;
+  --fo-text: var(--fo-ink);
+  --fo-muted: var(--fo-ink-muted);
+  --fo-line: var(--fo-hairline-soft);
+  --fo-panel: var(--fo-surface);
+  /* Largeur de contenu unique pour tout le frontoffice : header, footer et
+     pages doivent partager la même gouttière, sinon les blocs ne s'alignent
+     pas verticalement d'une section à l'autre. */
+  --fo-container: 1400px;
+  --fo-gutter: 2rem;
+  min-height: 100vh;
+  /* Même famille chromatique que l'écran de connexion (teal/cyan profond). */
+  background:
+    radial-gradient(900px 600px at 82% 0%, var(--fo-glow-1), transparent 62%),
+    radial-gradient(800px 560px at -10% 25%, var(--fo-glow-2), transparent 62%),
+    linear-gradient(165deg, var(--fo-bg-1) 0%, var(--fo-bg-2) 48%, var(--fo-bg-3) 100%) !important;
+  color: var(--fo-text);
+}
+
+body .layout-wrapper .blob { display: none !important; }
+
+body .layout-wrapper .main-content {
+  max-width: var(--fo-container) !important;
+  /* Padding vertical minimal pour rapprocher le contenu du header ;
+     les pages pleine largeur (home, offres) le compensent par un
+     `margin: calc(-X - 66px)` où X est le nouveau padding (ici 0). */
+  padding: 0 var(--fo-gutter) !important;
+}
+
+body .layout-wrapper .logo h1 {
+  color: transparent !important;
+  background: linear-gradient(90deg, var(--fo-teal), var(--fo-cyan));
+  -webkit-background-clip: text;
+  background-clip: text;
+  font-size: 1.25rem !important;
+  font-weight: 850 !important;
+  letter-spacing: 0 !important;
+}
+
+body .layout-wrapper .tagline {
+  color: var(--fo-muted) !important;
+  font-size: .66rem !important;
+}
+
+body .layout-wrapper .nav-link {
+  padding: .55rem .85rem !important;
+  border: 1px solid transparent;
+  border-radius: 10px !important;
+  color: var(--fo-ink-muted) !important;
+  font-size: .85rem !important;
+  font-weight: 650 !important;
+}
+
+body .layout-wrapper .nav-link:hover {
+  color: #fff !important;
+  background: rgba(255,255,255,.08) !important;
+  border-color: rgba(196,255,247,.13);
+}
+
+body .layout-wrapper .nav-link.active {
+  color: #fff !important;
+  background: linear-gradient(135deg, rgba(16,185,129,.4), rgba(34,211,238,.26)) !important;
+  border-color: rgba(52,211,153,.35);
+}
+
+body .layout-wrapper .icon-btn,
+body .layout-wrapper .profile-btn,
+body .layout-wrapper .menu-toggle,
+body .layout-wrapper .btn-login {
+  min-height: 36px;
+  border: 1px solid var(--fo-line) !important;
+  border-radius: 8px !important;
+  background: var(--fo-field) !important;
+  color: var(--fo-ink) !important;
+  font-size: .82rem !important;
+}
+
+body .layout-wrapper .btn-login,
+body .layout-wrapper .apply-btn,
+body .layout-wrapper .btn-browse {
+  border: 0 !important;
+  border-radius: 12px !important;
+  font-weight: 800 !important;
+  /* Couleur de bouton unie (plus de dégradé). */
+  background: #10b981 !important;
+  color: #04110E !important;
+  box-shadow: 0 12px 32px rgba(16,185,129,.32), inset 0 1px 0 rgba(255,255,255,.3);
+}
+
+body .layout-wrapper .btn-login:hover,
+body .layout-wrapper .apply-btn:hover,
+body .layout-wrapper .btn-browse:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 18px 44px rgba(16,185,129,.45) !important;
+  filter: brightness(1.06);
+}
+
+body .layout-wrapper .notification-dropdown,
+body .layout-wrapper .profile-dropdown {
+  border: 1px solid var(--fo-line) !important;
+  border-radius: 14px !important;
+  background: var(--fo-surface-strong) !important;
+}
+
+body .layout-wrapper .page-header,
+body .layout-wrapper .glass-card,
+body .layout-wrapper .job-card,
+body .layout-wrapper .empty-state,
+body .layout-wrapper .profile-card,
+body .layout-wrapper .application-card,
+body .layout-wrapper .job-detail-card,
+body .layout-wrapper .detail-card {
+  border: 1px solid var(--fo-line) !important;
+  border-radius: 18px !important;
+  background: var(--fo-panel) !important;
+  backdrop-filter: blur(20px) saturate(1.1);
+  -webkit-backdrop-filter: blur(20px) saturate(1.1);
+  box-shadow: 0 22px 60px var(--fo-shadow), inset 0 1px 0 rgba(255,255,255,.06);
+  transition: transform .25s cubic-bezier(.16,1,.3,1), box-shadow .3s ease, border-color .3s ease;
+}
+
+/* Premium hover lift for interactive cards */
+body .layout-wrapper .job-card:hover {
+  transform: translateY(-4px);
+  border-color: rgba(52,211,153,.35) !important;
+  box-shadow: 0 30px 70px var(--fo-shadow-strong), inset 0 1px 0 rgba(255,255,255,.08);
+}
+
+body .layout-wrapper h1,
+body .layout-wrapper h2,
+body .layout-wrapper h3 {
+  color: var(--fo-heading) !important;
+  letter-spacing: 0 !important;
+}
+
+body .layout-wrapper p,
+body .layout-wrapper .subtitle,
+body .layout-wrapper .job-description,
+body .layout-wrapper .description,
+body .layout-wrapper .job-location {
+  color: var(--fo-muted) !important;
+}
+
+body .layout-wrapper input,
+body .layout-wrapper select,
+body .layout-wrapper textarea {
+  border: 1px solid var(--fo-line) !important;
+  border-radius: 12px !important;
+  background: var(--fo-field) !important;
+  color: var(--fo-text) !important;
+  font-size: .875rem !important;
+  padding: .62rem .85rem !important;
+  transition: border-color .2s ease, box-shadow .2s ease, background-color .2s ease;
+}
+
+body .layout-wrapper input:focus,
+body .layout-wrapper select:focus,
+body .layout-wrapper textarea:focus {
+  border-color: rgba(52,211,153,.7) !important;
+  box-shadow: 0 0 0 3px rgba(52,211,153,.16) !important;
+  outline: none !important;
+}
+
+body .layout-wrapper select option {
+  background: var(--fo-surface-strong) !important;
+  color: var(--fo-text) !important;
+}
+
+@media (max-width: 768px) {
+  /* La gouttière rétrécit en un seul endroit : header, footer et contenu
+     restent alignés à tous les points de rupture. */
+  body .layout-wrapper { --fo-gutter: 1rem; }
+  body .layout-wrapper .main-content { padding: 0 var(--fo-gutter) !important; }
+  body .layout-wrapper .nav {
+    background: var(--fo-surface-strong) !important;
+    border-bottom: 1px solid var(--fo-line) !important;
+  }
+}
+
+@media (max-width: 480px) {
+  body .layout-wrapper { --fo-gutter: 1.1rem; }
+  body .layout-wrapper .main-content { padding: 0 var(--fo-gutter) !important; }
+  body .layout-wrapper .logo h1 { font-size: 1.05rem !important; }
+}

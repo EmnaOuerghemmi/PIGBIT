@@ -1,0 +1,184 @@
+<div class="home">
+
+  <!-- ═══════════════ HERO ═══════════════ -->
+  <section class="hero">
+    <div class="hero-media"></div>
+    <div class="hero-scrim"></div>
+    <div class="hero-glow hero-glow--a"></div>
+    <div class="hero-glow hero-glow--b"></div>
+
+    <div class="shell hero-inner">
+      <p class="hero-hello" *ngIf="currentUser">Bonjour {{ getUserFirstName() }},</p>
+
+     
+      <h1 class="hero-title">
+        Construisez avec nous<br>
+        <span class="grad">les produits de demain</span>
+      </h1>
+
+      <p class="hero-lead">
+        PIQBIT conçoit des plateformes web et des solutions d'intelligence artificielle
+        pour ses clients en Tunisie et en Europe. Nous recrutons les profils qui feront
+        grandir nos produits — et qui grandiront avec nous.
+      </p>
+
+      <div class="hero-cta">
+        <button class="btn btn--primary" (click)="goToJobs()">
+          Voir les postes ouverts
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round">
+            <line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/>
+          </svg>
+        </button>
+        <button class="btn btn--ghost" *ngIf="!isAuthenticated" (click)="goToRegister()">
+          Créer mon profil
+        </button>
+        <button class="btn btn--ghost" *ngIf="isAuthenticated" (click)="goToApplications()">
+          Mes candidatures
+        </button>
+      </div>
+
+    
+    </div>
+  </section>
+
+  <!-- ═══════════════ POURQUOI PIQBIT ═══════════════ -->
+  <section class="section">
+    <div class="shell">
+      <header class="sec-head">
+        <span class="eyebrow">Pourquoi travailler avec nous</span>
+        <h2>Pourquoi travailler avec nous&nbsp;?</h2>
+        <div class="sec-intro">
+          <p>
+            PIQBIT est une société de services informatiques tunisienne, spécialisée dans
+            l'exécution de projets IT professionnels pour les appels d'offres publics et privés.
+            Nous livrons des solutions de niveau entreprise, en conformité totale avec les
+            exigences réglementaires et les standards professionnels.
+          </p>
+          <p>
+            Nous associons expertise technique et rigueur de service. Notre approche repose sur
+            la fiabilité, la conformité, la qualité d'exécution, le respect des délais, la
+            transparence et le respect intégral de la réglementation légale et fiscale tunisienne.
+          </p>
+        </div>
+      </header>
+
+      <div class="grid-4">
+        <article class="card" *ngFor="let a of advantages">
+          <!-- Fond photo + voile, même traitement que le hero : le texte reste
+               clair et lisible dans les deux thèmes. -->
+          <span class="card-media" [style.background-image]="'url(' + a.img + ')'"></span>
+          <span class="card-scrim"></span>
+          <span class="card-ico" [ngSwitch]="a.icon">
+            <svg *ngSwitchCase="'shield'" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><polyline points="9 12 11.5 14.5 15.5 10"/>
+            </svg>
+            <svg *ngSwitchCase="'stack'" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+              <polygon points="12 2 2 7 12 12 22 7 12 2"/><polyline points="2 17 12 22 22 17"/><polyline points="2 12 12 17 22 12"/>
+            </svg>
+            <svg *ngSwitchCase="'users'" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/>
+            </svg>
+            <svg *ngSwitchCase="'growth'" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M3 17l6-6 4 4 8-8"/><polyline points="14 7 21 7 21 14"/>
+            </svg>
+          </span>
+          <h3>{{ a.title }}</h3>
+          <p>{{ a.desc }}</p>
+        </article>
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══════════════ PROCESSUS ═══════════════ -->
+  <section class="section section--alt">
+    <div class="shell">
+      <header class="sec-head">
+        <span class="eyebrow">Comment postuler</span>
+        <h2>Votre candidature, étape par étape</h2>
+      </header>
+
+      <!-- Timeline alternée : ligne centrale, pastilles numérotées, cartes
+           à gauche / à droite. Sur mobile tout bascule à gauche (cf. CSS). -->
+      <ol class="timeline">
+        <li class="tl-item" *ngFor="let s of process; let i = index"
+            [class.tl-item--right]="i % 2 === 1">
+          <div class="tl-card">
+            <h3>{{ s.title }}</h3>
+            <p>{{ s.desc }}</p>
+          </div>
+          <span class="tl-dot" aria-hidden="true">{{ s.num }}</span>
+        </li>
+      </ol>
+    </div>
+  </section>
+
+  <!-- ═══════════════ ÉQUIPES ═══════════════ -->
+  <section class="section">
+    <div class="shell">
+      <header class="sec-head">
+        <span class="eyebrow">Nos équipes</span>
+        <h2>Les domaines dans lesquels nous recrutons</h2>
+      </header>
+
+      <div class="grid-teams">
+        <article class="team" *ngFor="let t of teams" (click)="goToJobs()">
+          <span class="team-media" [style.background-image]="'url(' + t.img + ')'"></span>
+          <span class="team-scrim"></span>
+          <div class="team-body">
+            <h3>{{ t.name }}</h3>
+            <span>{{ t.desc }}</span>
+          </div>
+        </article>
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══════════════ CTA ═══════════════ -->
+  <section class="section cta-sec">
+    <div class="shell">
+      <div class="cta">
+        <div class="cta-glow" aria-hidden="true"></div>
+
+        <div class="cta-main">
+          <span class="eyebrow">Rejoindre PIQBIT</span>
+          <h2>Un poste vous correspond&nbsp;?</h2>
+          <p>
+            Créez votre compte, déposez votre CV, et candidatez aux postes ouverts.
+            Vous suivez ensuite chaque étape depuis votre espace candidat.
+          </p>
+
+          <div class="cta-actions">
+            <button class="btn btn--primary btn--lg" (click)="goToJobs()">
+              Voir les postes ouverts
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round">
+                <line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/>
+              </svg>
+            </button>
+            <button class="btn btn--ghost btn--lg" *ngIf="!isAuthenticated" (click)="goToRegister()">
+              Créer mon compte
+            </button>
+            <button class="btn btn--ghost btn--lg" *ngIf="isAuthenticated" (click)="goToApplications()">
+              Mes candidatures
+            </button>
+          </div>
+        </div>
+
+        <ul class="cta-aside">
+          <li>
+            <strong>01</strong>
+            <span>Compte créé en quelques minutes</span>
+          </li>
+          <li>
+            <strong>02</strong>
+            <span>CV déposé une seule fois</span>
+          </li>
+          <li>
+            <strong>03</strong>
+            <span>Suivi en temps réel de vos candidatures</span>
+          </li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+</div>

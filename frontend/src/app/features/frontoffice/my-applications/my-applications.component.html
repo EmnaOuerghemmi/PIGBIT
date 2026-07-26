@@ -1,0 +1,275 @@
+<div class="apps-page">
+
+  <!-- ════════════════ HERO ════════════════ -->
+  <section class="apps-hero">
+    <div class="hero-bg">
+      <div class="hbg-dot-grid"></div>
+      <div class="hbg-orb hbg-orb-a"></div>
+      <div class="hbg-orb hbg-orb-b"></div>
+      <div class="hbg-stripe"></div>
+    </div>
+
+    <div class="hero-inner">
+      <div class="hero-badge">
+        <span class="badge-dot"></span>
+        <span>{{ applications.length }} candidature{{ applications.length !== 1 ? 's' : '' }} au total</span>
+      </div>
+
+      <h1 class="hero-h1">
+        Suivez vos
+        <span class="hero-h1-gradient">candidatures en temps réel</span>
+      </h1>
+
+      <p class="hero-sub">
+        Consultez l'évolution de chacune de vos candidatures, votre score IA
+        et le statut de la décision côté employeur.
+      </p>
+
+      <!-- Quick stat tiles -->
+      <div class="hero-stats" *ngIf="applications.length > 0">
+        <div class="hs-tile">
+          <strong>{{ applications.length }}</strong>
+          <span>Total</span>
+        </div>
+        <div class="hs-tile">
+          <strong>{{ getStatusCount('PENDING') }}</strong>
+          <span>En attente</span>
+        </div>
+        <div class="hs-tile">
+          <strong>{{ getStatusCount('REVIEWED') }}</strong>
+          <span>Examinées</span>
+        </div>
+        <div class="hs-tile hs-tile--accent">
+          <strong>{{ getStatusCount('ACCEPTED') }}</strong>
+          <span>Acceptées</span>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ════════════════ BODY ════════════════ -->
+  <div class="apps-body">
+
+    <!-- Filters bar -->
+    <section class="filters-bar" *ngIf="applications.length > 0">
+      <div class="search-pill">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="11" cy="11" r="8"/>
+          <path d="m21 21-4.35-4.35"/>
+        </svg>
+        <input
+          type="search"
+          placeholder="Rechercher par poste, compétence…"
+          [(ngModel)]="searchQuery"
+          (input)="applyFilters()" />
+      </div>
+
+      <div class="select-pill">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <line x1="4" y1="6" x2="20" y2="6"/>
+          <line x1="8" y1="12" x2="16" y2="12"/>
+          <line x1="10" y1="18" x2="14" y2="18"/>
+        </svg>
+        <select [(ngModel)]="statusFilter" (ngModelChange)="applyFilters()">
+          <option *ngFor="let o of statusOptions" [value]="o.value">{{ o.label }}</option>
+        </select>
+      </div>
+
+      <div class="select-pill">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M3 6h18M3 12h12M3 18h6"/>
+        </svg>
+        <select [(ngModel)]="sortBy" (ngModelChange)="applyFilters()">
+          <option *ngFor="let o of sortOptions" [value]="o.value">{{ o.label }}</option>
+        </select>
+      </div>
+
+      <button *ngIf="hasActiveFilters()" class="reset-btn" (click)="resetFilters()">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+          <line x1="18" y1="6" x2="6" y2="18"/>
+          <line x1="6" y1="6" x2="18" y2="18"/>
+        </svg>
+        Réinitialiser
+      </button>
+    </section>
+
+    <!-- Results count -->
+    <div class="results-line" *ngIf="applications.length > 0">
+      <strong>{{ filtered.length }}</strong> candidature{{ filtered.length !== 1 ? 's' : '' }}
+      <span *ngIf="searchQuery"> pour "{{ searchQuery }}"</span>
+    </div>
+
+    <!-- Loading -->
+    <div class="state-block" *ngIf="isLoading">
+      <span class="spinner"></span>
+      <strong>Chargement de vos candidatures…</strong>
+    </div>
+
+    <!-- Error -->
+    <div class="state-block state-block--error" *ngIf="!isLoading && errorMsg">
+      <div class="state-icon">
+        <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="12" cy="12" r="10"/>
+          <line x1="12" y1="8" x2="12" y2="12"/>
+          <line x1="12" y1="16" x2="12.01" y2="16"/>
+        </svg>
+      </div>
+      <strong>Impossible de charger vos candidatures</strong>
+      <p>{{ errorMsg }}</p>
+      <button class="btn-primary" (click)="loadApplications()">Réessayer</button>
+    </div>
+
+    <!-- Cards -->
+    <div class="apps-grid" *ngIf="!isLoading && !errorMsg && paginated.length > 0">
+      <article *ngFor="let app of paginated" class="app-card">
+
+        <!-- Header -->
+        <header class="app-card__head">
+          <div class="app-card__logo">{{ (app.job_title || '?').slice(0, 2).toUpperCase() }}</div>
+          <div class="app-card__head-text">
+            <h3 class="app-card__title" (click)="viewJob(app.job_offer_id)" [title]="app.job_title">
+              {{ app.job_title }}
+            </h3>
+            <div class="app-card__meta">
+              <span class="meta-item">
+                <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <rect x="3" y="4" width="18" height="18" rx="2"/>
+                  <line x1="16" y1="2" x2="16" y2="6"/>
+                  <line x1="8" y1="2" x2="8" y2="6"/>
+                  <line x1="3" y1="10" x2="21" y2="10"/>
+                </svg>
+                {{ getDaysAgo(app.created_at) }}
+              </span>
+              <span class="meta-dot">·</span>
+              <span class="meta-item" *ngIf="app.job_required_experience_years">
+                {{ app.job_required_experience_years }} an{{ app.job_required_experience_years > 1 ? 's' : '' }} exp.
+              </span>
+              <span class="meta-item" *ngIf="!app.job_required_experience_years">Débutant accepté</span>
+            </div>
+          </div>
+          <span class="status-pill" [class]="'status-pill--' + (app.status | lowercase)">
+            <span class="status-dot"></span>
+            {{ getStatusLabel(app.status) }}
+          </span>
+        </header>
+
+        <!-- Score (if any) -->
+        <div *ngIf="app.total_score !== null && app.total_score !== undefined" class="app-card__score" [attr.data-tone]="getScoreTone(app.total_score)">
+          <div class="score-bar">
+            <div class="score-bar__fill" [style.width.%]="app.total_score"></div>
+          </div>
+          <div class="score-meta">
+            <span class="score-label">Score IA</span>
+            <strong class="score-value">{{ app.total_score | number:'1.0-0' }}<small>/100</small></strong>
+          </div>
+        </div>
+
+        <!-- Skills preview -->
+        <div class="app-card__skills" *ngIf="app.job_required_skills?.length">
+          <span *ngFor="let skill of (app.job_required_skills || []).slice(0, 4)" class="skill-tag">{{ skill }}</span>
+          <span *ngIf="(app.job_required_skills?.length || 0) > 4" class="skill-more">
+            +{{ (app.job_required_skills?.length || 0) - 4 }}
+          </span>
+        </div>
+
+        <!-- Footer -->
+        <footer class="app-card__foot">
+          <div class="salary" *ngIf="app.job_salary_min">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <line x1="12" y1="1" x2="12" y2="23"/>
+              <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/>
+            </svg>
+            {{ app.job_salary_min | number:'1.0-0' }}<ng-container *ngIf="app.job_salary_max"> – {{ app.job_salary_max | number:'1.0-0' }}</ng-container> TND
+          </div>
+          <div class="salary salary--none" *ngIf="!app.job_salary_min">À négocier</div>
+
+          <div class="app-card__actions">
+            <button class="btn-icon" (click)="openCVPreview(app.cv_file_path)" title="Aperçu du CV">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+                <circle cx="12" cy="12" r="3"/>
+              </svg>
+            </button>
+            <button class="btn-icon" (click)="downloadCV(app.cv_file_path)" title="Télécharger le CV">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                <polyline points="7 10 12 15 17 10"/>
+                <line x1="12" y1="15" x2="12" y2="3"/>
+              </svg>
+            </button>
+            <button class="btn-primary btn-primary--sm" (click)="viewJob(app.job_offer_id)">
+              Voir l'offre
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                <polyline points="9 18 15 12 9 6"/>
+              </svg>
+            </button>
+          </div>
+        </footer>
+      </article>
+    </div>
+
+    <!-- Empty state — no results after filter -->
+    <div class="state-block" *ngIf="!isLoading && !errorMsg && applications.length > 0 && filtered.length === 0">
+      <div class="state-icon">
+        <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="11" cy="11" r="8"/>
+          <path d="m21 21-4.35-4.35"/>
+        </svg>
+      </div>
+      <strong>Aucun résultat</strong>
+      <p>Aucune candidature ne correspond à vos filtres.</p>
+      <button class="btn-secondary" (click)="resetFilters()">Réinitialiser les filtres</button>
+    </div>
+
+    <!-- Empty state — no applications at all -->
+    <div class="state-block state-block--lg" *ngIf="!isLoading && !errorMsg && applications.length === 0">
+      <div class="state-icon state-icon--lg">
+        <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"/>
+          <polyline points="14 3 14 9 20 9"/>
+          <line x1="9" y1="14" x2="15" y2="14"/>
+          <line x1="9" y1="18" x2="13" y2="18"/>
+        </svg>
+      </div>
+      <strong>Aucune candidature pour le moment</strong>
+      <p>Vous n'avez pas encore postulé. Découvrez les offres disponibles et lancez-vous !</p>
+      <a routerLink="/jobs" class="btn-primary">
+        Découvrir les offres
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+          <line x1="5" y1="12" x2="19" y2="12"/>
+          <polyline points="12 5 19 12 12 19"/>
+        </svg>
+      </a>
+    </div>
+
+    <!-- Pagination -->
+    <app-pagination
+      *ngIf="!isLoading && filtered.length > 0"
+      [currentPage]="currentPage"
+      [totalPages]="totalPages"
+      [total]="filtered.length"
+      [pageSize]="pageSize"
+      (pageChange)="goToPage($event)"
+      (pageSizeChange)="onPageSizeChange($event)">
+    </app-pagination>
+  </div>
+
+  <!-- ════════════════ CV PREVIEW MODAL ════════════════ -->
+  <div class="modal-overlay" *ngIf="cvPreviewOpen" (click)="closeCVPreview()"></div>
+  <section class="preview-modal" *ngIf="cvPreviewOpen" role="dialog" aria-modal="true">
+    <header class="preview-modal__head">
+      <div>
+        <span class="preview-eyebrow">Candidature</span>
+        <h3>Aperçu du CV</h3>
+      </div>
+      <button class="btn-close" (click)="closeCVPreview()" aria-label="Fermer">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <line x1="18" y1="6" x2="6" y2="18"/>
+          <line x1="6" y1="6" x2="18" y2="18"/>
+        </svg>
+      </button>
+    </header>
+    <iframe [src]="cvPreviewPath | safe" class="preview-modal__frame" title="CV"></iframe>
+  </section>
+
+</div>

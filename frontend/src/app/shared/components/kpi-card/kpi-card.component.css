@@ -1,0 +1,43 @@
+.kpi-card {
+  background: white;
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  padding: 1.5rem;
+  text-align: center;
+}
+
+.kpi-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1rem;
+}
+
+.kpi-header h3 {
+  margin: 0;
+  font-size: 0.9rem;
+  color: #666;
+}
+
+.icon {
+  font-size: 1.5rem;
+}
+
+.kpi-value {
+  font-size: 2rem;
+  font-weight: bold;
+  color: #333;
+  margin-bottom: 0.5rem;
+}
+
+.kpi-trend {
+  font-size: 0.9rem;
+}
+
+.kpi-trend.positive {
+  color: green;
+}
+
+.kpi-trend.negative {
+  color: red;
+}

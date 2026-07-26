@@ -1,0 +1,147 @@
+
+    * { box-sizing: border-box; }
+
+    .layout-wrapper {
+      display: flex;
+      flex-direction: column;
+      min-height: 100vh;
+      background: linear-gradient(135deg,
+        oklch(38.6% .063 188.416) 0%,
+        oklch(39.8% .07 227.392) 40%,
+        oklch(19% .03 220) 100%
+      );
+      position: relative;
+      /* `clip` et non `hidden` : `overflow-x: hidden` force `overflow-y: auto`,
+         ce qui fait de ce bloc un conteneur de défilement et désactive le
+         `position: sticky` du header (il défilait hors de l'écran). */
+      overflow-x: clip;
+      /* Référence pour les pages pleine largeur : `cqw` mesure la zone client
+         hors barre de défilement, contrairement à `vw` qui l'inclut et
+         décalait ces pages de ~5px par rapport au header et au footer. */
+      container-type: inline-size;
+    }
+
+    /* ===== BLOBS ===== */
+    .blob {
+      position: fixed;
+      border-radius: 50%;
+      filter: blur(80px);
+      mix-blend-mode: screen;
+      animation: blobFloat 8s ease-in-out infinite;
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    .blob-1 {
+      width: 500px;
+      height: 500px;
+      background: radial-gradient(circle,
+        oklch(70.4% .14 182.503 / 0.55),
+        oklch(60% .118 184.704 / 0.25)
+      );
+      top: -150px;
+      left: -150px;
+    }
+
+    .blob-2 {
+      width: 400px;
+      height: 400px;
+      background: radial-gradient(circle,
+        oklch(71.5% .143 215.221 / 0.5),
+        oklch(60.9% .126 221.723 / 0.2)
+      );
+      bottom: -100px;
+      right: -100px;
+      animation-delay: -3s;
+      animation-duration: 10s;
+    }
+
+    .blob-3 {
+      width: 350px;
+      height: 350px;
+      background: radial-gradient(circle,
+        oklch(82.8% .111 230.318 / 0.35),
+        oklch(80.9% .105 251.813 / 0.15)
+      );
+      top: 40%;
+      right: 15%;
+      animation-delay: -6s;
+      animation-duration: 7s;
+    }
+
+    @keyframes blobFloat {
+      0%, 100% { transform: translate(0, 0) scale(1); }
+      33% { transform: translate(30px, -40px) scale(1.05); }
+      66% { transform: translate(-20px, 25px) scale(0.97); }
+    }
+
+    /* ===== HEADER STYLING ===== */
+    app-header {
+      position: sticky;
+      top: 0;
+      z-index: 100;
+    }
+
+    /* ===== MAIN CONTENT ===== */
+    .main-content {
+      flex: 1;
+      position: relative;
+      z-index: 1;
+      padding: 2rem var(--fo-gutter);
+      max-width: var(--fo-container);
+      width: 100%;
+      margin: 0 auto;
+    }
+
+    /* ===== FOOTER STYLING ===== */
+    app-footer {
+      position: relative;
+      z-index: 1;
+      margin-top: auto;
+    }
+
+    @media (max-width: 768px) {
+      .main-content {
+        padding: 1.5rem;
+      }
+
+      .blob-1 {
+        width: 350px;
+        height: 350px;
+        top: -100px;
+        left: -100px;
+      }
+
+      .blob-2 {
+        width: 300px;
+        height: 300px;
+        bottom: -50px;
+        right: -50px;
+      }
+
+      .blob-3 {
+        width: 250px;
+        height: 250px;
+      }
+    }
+
+    @media (max-width: 480px) {
+      .main-content {
+        padding: 1rem;
+      }
+
+      .blob-1 {
+        width: 250px;
+        height: 250px;
+      }
+
+      .blob-2 {
+        width: 200px;
+        height: 200px;
+      }
+
+      .blob-3 {
+        width: 180px;
+        height: 180px;
+      }
+    }

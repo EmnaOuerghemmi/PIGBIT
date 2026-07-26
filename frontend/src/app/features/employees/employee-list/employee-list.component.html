@@ -1,0 +1,69 @@
+<div class="module-page">
+
+  <header class="page-header">
+    <div class="page-header__intro">
+      <span class="eyebrow">Ressources humaines</span>
+      <h1>Employés</h1>
+      <p>{{ employees.length }} fiches — {{ activeCount }} actifs. Cliquez sur une ligne pour le détail.</p>
+    </div>
+    <a routerLink="/admin/employees/new" class="btn-primary">+ Nouvel employé</a>
+  </header>
+
+  <div class="state-banner" *ngIf="loading">Chargement des employés…</div>
+  <div class="state-banner state-banner--error" *ngIf="error">{{ error }}</div>
+
+  <section class="surface" *ngIf="!loading">
+    <div class="filters">
+      <select [(ngModel)]="departmentFilter" name="departmentFilter">
+        <option value="">Tous les départements</option>
+        <option *ngFor="let d of departments" [value]="d">{{ d }}</option>
+      </select>
+      <select [(ngModel)]="statusFilter" name="statusFilter">
+        <option value="">Tous les statuts</option>
+        <option value="active">Actif</option>
+        <option value="on-leave">En congé</option>
+        <option value="inactive">Inactif</option>
+      </select>
+    </div>
+
+    <div class="table-wrap">
+      <table class="data-table">
+        <thead>
+          <tr>
+            <th>Employé</th>
+            <th>Poste</th>
+            <th>Département</th>
+            <th>Salaire (TND)</th>
+            <th>Embauche</th>
+            <th>Statut</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr *ngFor="let e of filtered; trackBy: trackEmp" class="emp-row" (click)="open(e)">
+            <td>
+              <div class="emp-cell">
+                <span class="avatar">{{ (e.firstName[0] || '') + (e.lastName[0] || '') }}</span>
+                <span class="emp-cell__id">
+                  <strong>{{ e.firstName }} {{ e.lastName }}</strong>
+                  <small>{{ e.email }}</small>
+                </span>
+              </div>
+            </td>
+            <td>{{ e.position || '—' }}</td>
+            <td><span class="dept-pill" *ngIf="e.department">{{ e.department }}</span><span *ngIf="!e.department">—</span></td>
+            <td class="num">{{ e.salary ? (e.salary | number:'1.0-0') : '—' }}</td>
+            <td>{{ e.hireDate ? (e.hireDate | date:'MMM yyyy') : '—' }}</td>
+            <td><span class="status-badge" [attr.data-status]="e.status">{{ statusLabel(e.status) }}</span></td>
+            <td class="row-actions">
+              <button type="button" class="icon-btn icon-btn--danger" title="Supprimer" (click)="remove(e, $event)">✕</button>
+            </td>
+          </tr>
+          <tr *ngIf="!filtered.length">
+            <td colspan="7" class="empty-cell">Aucun employé ne correspond aux filtres.</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+</div>

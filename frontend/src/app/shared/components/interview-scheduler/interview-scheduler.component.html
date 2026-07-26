@@ -1,0 +1,56 @@
+
+<div class="scheduler-container">
+
+  <div *ngIf="success" class="success-state">
+    <div class="success-icon">✓</div>
+    <h4>Entretien planifié !</h4>
+    <p>L'email d'invitation a été envoyé au candidat.</p>
+  </div>
+
+  <ng-container *ngIf="!success">
+    <div class="scheduler-header">
+      <span class="eyebrow">Planification entretien</span>
+      <h4>{{ jobTitle || 'Invitation à un entretien' }}</h4>
+      <p>Proposez jusqu'à 5 créneaux. Le candidat recevra un email pour choisir.</p>
+    </div>
+
+    <div class="slots-section">
+      <label class="field-label">Créneaux proposés</label>
+      <div class="slot-row" *ngFor="let slot of slots; let i = index; trackBy: trackByIndex">
+        <span class="slot-num">{{ i + 1 }}</span>
+        <input
+          type="datetime-local"
+          class="slot-input"
+          [(ngModel)]="slots[i]"
+          [name]="'slot_' + i"
+        />
+        <button class="slot-remove" (click)="removeSlot(i)" *ngIf="slots.length > 1" title="Supprimer">✕</button>
+      </div>
+      <button class="btn-add-slot" (click)="addSlot()" *ngIf="slots.length < 5">
+        + Ajouter un créneau
+      </button>
+    </div>
+
+    <div class="message-section">
+      <label class="field-label">Message personnalisé (optionnel)</label>
+      <textarea
+        class="message-input"
+        [(ngModel)]="message"
+        name="message"
+        rows="3"
+        placeholder="Ex : L'entretien durera environ 30 minutes en visioconférence."
+      ></textarea>
+    </div>
+
+    <div class="error-msg" *ngIf="errorMsg">{{ errorMsg }}</div>
+
+    <div class="scheduler-footer">
+      <button class="btn-cancel" (click)="cancel()" [disabled]="isSubmitting">Annuler</button>
+      <button class="btn-send" (click)="submit()" [disabled]="isSubmitting || validSlots.length === 0">
+        <span *ngIf="!isSubmitting">📧 Envoyer l'invitation</span>
+        <span *ngIf="isSubmitting">Envoi en cours...</span>
+      </button>
+    </div>
+  </ng-container>
+
+</div>

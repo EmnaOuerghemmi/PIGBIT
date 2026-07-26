@@ -1,0 +1,111 @@
+<div class="module-page">
+
+  <header class="page-header">
+    <div class="page-header__intro">
+      <span class="eyebrow">Négociation</span>
+      <h1>Négociation salariale automatique</h1>
+      <p>Choisissez une offre et une proposition salariale : l'agent IA prédit le salaire de marché et négocie automatiquement.</p>
+    </div>
+  </header>
+
+  <div class="neg-grid">
+
+    <!-- ── Paramètres ── -->
+    <section class="surface neg-form-card">
+      <header class="surface__head">
+        <div>
+          <span class="eyebrow eyebrow--info">Paramètres</span>
+          <h2>Lancer une négociation</h2>
+        </div>
+      </header>
+
+      <div class="field">
+        <label>Offre concernée</label>
+        <select class="input" [(ngModel)]="selectedJobId">
+          <option value="" disabled>Choisir une offre…</option>
+          <option *ngFor="let j of jobs" [value]="j.id">{{ j.title }}</option>
+        </select>
+      </div>
+
+      <div class="field" *ngIf="selectedJob as job">
+        <label>Compétences de l'offre</label>
+        <div class="sk-chips">
+          <span class="sk-chip" *ngFor="let s of (job.required_skills || [])">{{ s }}</span>
+          <span class="sk-empty" *ngIf="!(job.required_skills?.length)">Aucune compétence renseignée</span>
+        </div>
+      </div>
+
+      <div class="field">
+        <label>Offre salariale de l'employeur (TND / mois)</label>
+        <input class="input" type="number" min="1" step="50" [(ngModel)]="employerOffer" placeholder="Ex : 3000" />
+      </div>
+
+      <button class="btn-launch" (click)="launch()" [disabled]="running || !selectedJobId || !employerOffer">
+        <svg *ngIf="!running" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M5 12h14M12 5l7 7-7 7"/>
+        </svg>
+        <span class="spin-dot" *ngIf="running"></span>
+        {{ running ? 'Négociation en cours…' : 'Lancer la négociation' }}
+      </button>
+
+      <p class="neg-error" *ngIf="error">{{ error }}</p>
+    </section>
+
+    <!-- ── Résultat ── -->
+    <section class="surface neg-result-card">
+      <header class="surface__head">
+        <div>
+          <span class="eyebrow eyebrow--gold-dark">Résultat</span>
+          <h2>Issue de la négociation</h2>
+        </div>
+        <span class="result-pill" *ngIf="result" [attr.data-tone]="statusTone(result.negotiation_status)">
+          {{ statusIcon(result.negotiation_status) }} {{ statusLabel(result.negotiation_status) }}
+        </span>
+      </header>
+
+      <!-- Empty -->
+      <div class="neg-empty" *ngIf="!result && !running">
+        <div class="neg-empty__icon">🤝</div>
+        <p>Lancez une négociation pour voir le salaire prédit et l'issue.</p>
+      </div>
+
+      <div class="neg-empty" *ngIf="running">
+        <span class="spin-dot spin-dot--lg"></span>
+        <p>L'agent IA prédit le salaire et négocie…</p>
+      </div>
+
+      <!-- Result -->
+      <ng-container *ngIf="result && !running">
+        <div class="metrics">
+          <div class="metric">
+            <span class="metric-val">{{ result.predicted_salary }}</span>
+            <span class="metric-lbl">Salaire prédit (TND)</span>
+          </div>
+          <div class="metric">
+            <span class="metric-val">{{ result.initial_offer || employerOffer }}</span>
+            <span class="metric-lbl">Offre initiale (TND)</span>
+          </div>
+          <div class="metric" [attr.data-tone]="statusTone(result.negotiation_status)">
+            <span class="metric-val">{{ result.final_salary }}</span>
+            <span class="metric-lbl">Salaire final (TND)</span>
+          </div>
+          <div class="metric">
+            <span class="metric-val" [class.pos]="gain() > 0" [class.neg]="gain() < 0">
+              {{ gain() > 0 ? '+' : '' }}{{ gain() }}
+            </span>
+            <span class="metric-lbl">Écart négocié (TND)</span>
+          </div>
+        </div>
+
+        <div class="timeline">
+          <div class="tl-row" *ngFor="let e of events">
+            <span class="tl-icon">{{ e.icon }}</span>
+            <span class="tl-text">{{ e.text }}</span>
+          </div>
+        </div>
+
+        <p class="neg-reason" *ngIf="result.reason">{{ result.reason }}</p>
+      </ng-container>
+    </section>
+  </div>
+</div>

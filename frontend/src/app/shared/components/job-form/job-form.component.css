@@ -1,0 +1,201 @@
+
+    * { box-sizing: border-box; }
+
+    .form-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.5);
+      z-index: 200;
+      display: flex;
+      justify-content: flex-end;
+    }
+
+    .side-panel {
+      width: 100%;
+      max-width: 450px;
+      height: 100vh;
+      background: linear-gradient(135deg,
+        oklch(30.5% .063 188.416),
+        oklch(31% .07 227.392)
+      );
+      box-shadow: -4px 0 20px rgba(0, 0, 0, 0.3);
+      display: flex;
+      flex-direction: column;
+      overflow-y: auto;
+      animation: slideInRight 0.3s ease;
+    }
+
+    @keyframes slideInRight {
+      from {
+        transform: translateX(100%);
+      }
+      to {
+        transform: translateX(0);
+      }
+    }
+
+    .panel-header {
+      padding: 1.5rem;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      position: sticky;
+      top: 0;
+    }
+
+    .panel-header h2 {
+      margin: 0;
+      color: white;
+      font-size: 1.3rem;
+      font-weight: 600;
+    }
+
+    .btn-close {
+      background: none;
+      border: none;
+      color: rgba(255, 255, 255, 0.7);
+      font-size: 1.5rem;
+      cursor: pointer;
+      transition: color 0.2s;
+    }
+
+    .btn-close:hover {
+      color: white;
+    }
+
+    .form-content {
+      flex: 1;
+      padding: 1.5rem;
+      overflow-y: auto;
+    }
+
+    .form-group {
+      margin-bottom: 1.5rem;
+    }
+
+    .form-group label {
+      display: block;
+      color: white;
+      font-weight: 600;
+      margin-bottom: 0.5rem;
+      font-size: 0.9rem;
+    }
+
+    .form-input,
+    .form-textarea {
+      width: 100%;
+      padding: 0.75rem;
+      background: rgba(255, 255, 255, 0.08);
+      border: 1px solid rgba(255, 255, 255, 0.15);
+      border-radius: 8px;
+      color: white;
+      font-size: 0.95rem;
+      font-family: inherit;
+      transition: all 0.2s;
+    }
+
+    .form-input:focus,
+    .form-textarea:focus {
+      outline: none;
+      background: rgba(255, 255, 255, 0.12);
+      border-color: oklch(70.4% .14 182.503);
+      box-shadow: 0 0 0 3px rgba(112, 181, 150, 0.1);
+    }
+
+    .form-textarea {
+      resize: vertical;
+    }
+
+    .form-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 1rem;
+    }
+
+    .checkbox {
+      margin-right: 0.5rem;
+      cursor: pointer;
+    }
+
+    .form-group label:has(.checkbox) {
+      display: flex;
+      align-items: center;
+      margin-bottom: 0;
+    }
+
+    .form-actions {
+      display: flex;
+      gap: 1rem;
+      margin-top: 2rem;
+      padding-top: 1rem;
+      border-top: 1px solid rgba(255, 255, 255, 0.1);
+    }
+
+    .btn-primary,
+    .btn-secondary {
+      flex: 1;
+      padding: 0.8rem;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+      font-weight: 600;
+      font-size: 0.9rem;
+      transition: all 0.2s;
+    }
+
+    .btn-primary {
+      background: linear-gradient(135deg, oklch(70.4% .14 182.503), oklch(71.5% .143 215.221));
+      color: white;
+    }
+
+    .btn-primary:hover:not(:disabled) {
+      transform: translateY(-2px);
+      box-shadow: 0 6px 12px rgba(0, 0, 0, 0.2);
+    }
+
+    .btn-primary:disabled {
+      opacity: 0.6;
+    }
+
+    .btn-secondary {
+      background: rgba(255, 255, 255, 0.1);
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      color: white;
+    }
+
+    .btn-secondary:hover {
+      background: rgba(255, 255, 255, 0.15);
+    }
+
+    .success-msg {
+      color: #86efac;
+      background: rgba(34, 197, 94, 0.15);
+      border-left: 3px solid #22c55e;
+      padding: 0.75rem;
+      border-radius: 4px;
+      margin-top: 1rem;
+    }
+
+    .error-msg {
+      color: #fca5a5;
+      background: rgba(239, 68, 68, 0.15);
+      border-left: 3px solid #ef4444;
+      padding: 0.75rem;
+      border-radius: 4px;
+      margin-top: 1rem;
+    }
+
+    @media (max-width: 768px) {
+      .side-panel {
+        max-width: 100%;
+      }
+
+      .form-row {
+        grid-template-columns: 1fr;
+      }
+
+      .form-actions {
+        flex-direction: column;
+      }
+    }

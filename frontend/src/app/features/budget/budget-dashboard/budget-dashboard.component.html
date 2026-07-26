@@ -1,0 +1,165 @@
+<div class="module-page">
+
+  <header class="page-header">
+    <div class="page-header__intro">
+      <span class="eyebrow">Finances</span>
+      <h1>Budget par département</h1>
+      <p>Suivi des enveloppes {{ stats?.year }} : allocation, consommation et effectifs par département (TND).</p>
+    </div>
+  </header>
+
+  <!-- ── ÉTATS ──────────────────────────────────────────── -->
+  <div class="state-banner" *ngIf="loading">Chargement des budgets…</div>
+  <div class="state-banner state-banner--error" *ngIf="error">{{ error }}</div>
+
+  <ng-container *ngIf="!loading && stats">
+
+    <!-- ── KPI CARDS ──────────────────────────────────────── -->
+    <section class="kpi-grid">
+      <article class="kpi-card" data-tone="gold">
+        <div class="kpi-card__top">
+          <div class="kpi-card__icon">
+            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 7V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v2"/>
+            </svg>
+          </div>
+          <span class="kpi-card__delta">{{ stats.year }}</span>
+        </div>
+        <div class="kpi-card__body">
+          <p class="kpi-card__value">{{ stats.totals.allocated | number:'1.0-0' }}</p>
+          <p class="kpi-card__label">Budget total alloué (TND)</p>
+        </div>
+      </article>
+
+      <article class="kpi-card" data-tone="info">
+        <div class="kpi-card__top">
+          <div class="kpi-card__icon">
+            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M3 17l6-6 4 4 8-8"/><polyline points="14 7 21 7 21 14"/>
+            </svg>
+          </div>
+          <span class="kpi-card__delta">Consommé</span>
+        </div>
+        <div class="kpi-card__body">
+          <p class="kpi-card__value">{{ stats.totals.spent | number:'1.0-0' }}</p>
+          <p class="kpi-card__label">Dépensé à ce jour (TND)</p>
+        </div>
+      </article>
+
+      <article class="kpi-card" data-tone="success">
+        <div class="kpi-card__top">
+          <div class="kpi-card__icon">
+            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M12 1v22M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/>
+            </svg>
+          </div>
+          <span class="kpi-card__delta">Disponible</span>
+        </div>
+        <div class="kpi-card__body">
+          <p class="kpi-card__value">{{ stats.totals.remaining | number:'1.0-0' }}</p>
+          <p class="kpi-card__label">Budget restant (TND)</p>
+        </div>
+      </article>
+
+      <article class="kpi-card" data-tone="violet">
+        <div class="kpi-card__top">
+          <div class="kpi-card__icon">
+            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/>
+            </svg>
+          </div>
+          <span class="kpi-card__delta">Taux</span>
+        </div>
+        <div class="kpi-card__body">
+          <p class="kpi-card__value">{{ stats.totals.utilization | number:'1.0-1' }}%</p>
+          <p class="kpi-card__label">Taux d'utilisation global</p>
+        </div>
+      </article>
+    </section>
+
+    <!-- ── TABLE DES DÉPARTEMENTS ─────────────────────────── -->
+    <section class="surface">
+      <div class="surface__head">
+        <h2>Départements</h2>
+        <span class="surface__hint">{{ stats.departments.length }} départements — cliquez sur une ligne pour le détail des dépenses</span>
+      </div>
+
+      <div class="table-wrap">
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th>Département</th>
+              <th>Effectif</th>
+              <th>Alloué (TND)</th>
+              <th>Dépensé (TND)</th>
+              <th>Restant (TND)</th>
+              <th>Utilisation</th>
+            </tr>
+          </thead>
+          <tbody>
+            <ng-container *ngFor="let d of stats.departments; trackBy: trackDept">
+              <tr class="dept-row" (click)="toggleExpenses(d)" [class.dept-row--open]="expandedId === d.id">
+                <td class="dept-name">
+                  <span class="chevron" [class.chevron--open]="expandedId === d.id">▸</span>
+                  {{ d.department }}
+                </td>
+                <td>{{ d.headcount }} <span class="unit">pers.</span></td>
+                <td>{{ d.allocated_amount | number:'1.0-0' }}</td>
+                <td>{{ d.spent | number:'1.0-0' }}</td>
+                <td [class.negative]="d.remaining < 0">{{ d.remaining | number:'1.0-0' }}</td>
+                <td>
+                  <span class="career-progress">
+                    <span class="career-progress__bar"
+                          [attr.data-tone]="utilizationTone(d.utilization)"
+                          [style.width.%]="d.utilization > 100 ? 100 : d.utilization"></span>
+                  </span>
+                  <span class="career-progress__label">{{ d.utilization | number:'1.0-1' }}%</span>
+                </td>
+              </tr>
+
+              <!-- Détail des dépenses (ligne dépliée) -->
+              <tr *ngIf="expandedId === d.id" class="expense-row">
+                <td colspan="6">
+                  <div class="expense-panel">
+                    <p class="expense-panel__loading" *ngIf="expensesLoading">Chargement des dépenses…</p>
+
+                    <ul class="expense-list" *ngIf="!expensesLoading">
+                      <li *ngFor="let e of expenses" class="expense-item">
+                        <span class="expense-item__icon">{{ categoryIcon(e.category) }}</span>
+                        <span class="expense-item__label">{{ e.label }}</span>
+                        <span class="expense-item__cat">{{ e.category }}</span>
+                        <span class="expense-item__amount">{{ e.amount | number:'1.0-0' }} TND</span>
+                        <button type="button" class="expense-item__del" title="Supprimer"
+                                (click)="deleteExpense(d, e); $event.stopPropagation()">✕</button>
+                      </li>
+                      <li *ngIf="!expenses.length" class="expense-item expense-item--empty">
+                        Aucune dépense enregistrée.
+                      </li>
+                    </ul>
+
+                    <!-- Ajout d'une dépense -->
+                    <form class="expense-form" (submit)="addExpense(d); $event.preventDefault()" (click)="$event.stopPropagation()">
+                      <input type="text" placeholder="Libellé de la dépense"
+                             [(ngModel)]="newExpense.label" name="label" required>
+                      <select [(ngModel)]="newExpense.category" name="category">
+                        <option *ngFor="let c of categories" [value]="c">{{ c }}</option>
+                      </select>
+                      <input type="number" placeholder="Montant (TND)" min="1"
+                             [(ngModel)]="newExpense.amount" name="amount" required>
+                      <button type="submit" [disabled]="saving">{{ saving ? 'Ajout…' : '+ Ajouter' }}</button>
+                    </form>
+                  </div>
+                </td>
+              </tr>
+            </ng-container>
+
+            <tr *ngIf="!stats.departments.length">
+              <td colspan="6" class="empty-cell">Aucun budget défini pour {{ stats.year }}.</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+  </ng-container>
+</div>

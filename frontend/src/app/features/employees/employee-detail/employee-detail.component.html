@@ -1,0 +1,58 @@
+<div class="module-page">
+
+  <header class="page-header">
+    <div class="page-header__intro">
+      <span class="eyebrow">Ressources humaines</span>
+      <h1>Fiche employé</h1>
+    </div>
+    <div class="header-actions">
+      <a routerLink="/admin/employees" class="btn-ghost">← Retour</a>
+      <a *ngIf="employee" [routerLink]="['/admin/employees', employee.id, 'edit']" class="btn-primary">Modifier</a>
+    </div>
+  </header>
+
+  <div class="state-banner" *ngIf="loading">Chargement…</div>
+  <div class="state-banner state-banner--error" *ngIf="error">{{ error }}</div>
+
+  <section class="surface" *ngIf="!loading && employee">
+    <div class="profile-head">
+      <span class="avatar avatar--lg">{{ initials }}</span>
+      <div class="profile-head__id">
+        <h2>{{ employee.firstName }} {{ employee.lastName }}</h2>
+        <p>{{ employee.position || 'Poste non renseigné' }}</p>
+        <span class="status-badge" [attr.data-status]="employee.status">{{ statusLabel(employee.status) }}</span>
+      </div>
+    </div>
+
+    <dl class="detail-grid">
+      <div class="detail-item">
+        <dt>Email</dt>
+        <dd>{{ employee.email }}</dd>
+      </div>
+      <div class="detail-item">
+        <dt>Téléphone</dt>
+        <dd>{{ employee.phone || '—' }}</dd>
+      </div>
+      <div class="detail-item">
+        <dt>Département</dt>
+        <dd><span class="dept-pill" *ngIf="employee.department">{{ employee.department }}</span><span *ngIf="!employee.department">—</span></dd>
+      </div>
+      <div class="detail-item">
+        <dt>Salaire mensuel</dt>
+        <dd>{{ employee.salary ? ((employee.salary | number:'1.0-0') + ' TND') : '—' }}</dd>
+      </div>
+      <div class="detail-item">
+        <dt>Date d'embauche</dt>
+        <dd>{{ employee.hireDate ? (employee.hireDate | date:'dd MMMM yyyy') : '—' }}</dd>
+      </div>
+      <div class="detail-item">
+        <dt>Fiche créée le</dt>
+        <dd>{{ employee.createdAt ? (employee.createdAt | date:'dd/MM/yyyy') : '—' }}</dd>
+      </div>
+    </dl>
+
+    <div class="danger-zone">
+      <button type="button" class="btn-danger" (click)="remove()">Supprimer cette fiche</button>
+    </div>
+  </section>
+</div>

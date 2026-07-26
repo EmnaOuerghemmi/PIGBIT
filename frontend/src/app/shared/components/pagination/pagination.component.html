@@ -1,0 +1,22 @@
+
+    <div class="pagination" *ngIf="totalPages > 1">
+      <button class="btn-nav" (click)="goToPage(1)" [disabled]="currentPage === 1" title="Premiere page">&lt;&lt;</button>
+      <button class="btn-nav" (click)="goToPage(currentPage - 1)" [disabled]="currentPage === 1" title="Page precedente">&lt;</button>
+
+      <div class="page-info">
+        <span class="current">{{ currentPage }}</span>
+        <span class="separator">/</span>
+        <span class="total">{{ totalPages }}</span>
+      </div>
+
+      <button class="btn-nav" (click)="goToPage(currentPage + 1)" [disabled]="currentPage === totalPages" title="Page suivante">&gt;</button>
+      <button class="btn-nav" (click)="goToPage(totalPages)" [disabled]="currentPage === totalPages" title="Derniere page">&gt;&gt;</button>
+
+      <select class="page-size-select" [(ngModel)]="pageSize" (change)="onPageSizeChange()">
+        <option [value]="10">10 / page</option>
+        <option [value]="25">25 / page</option>
+        <option [value]="50">50 / page</option>
+      </select>
+
+      <span class="item-count">{{ itemsStart }}-{{ itemsEnd }} sur {{ total }}</span>
+    </div>

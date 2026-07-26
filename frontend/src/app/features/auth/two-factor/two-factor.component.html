@@ -1,0 +1,112 @@
+<section class="tfa">
+
+  <header class="tfa__head">
+    <div>
+      <span class="tfa__eyebrow">Sécurité</span>
+      <h3>Double authentification</h3>
+      <p>
+        Un code temporaire est demandé en plus du mot de passe à chaque
+        connexion. Même volé, votre mot de passe ne suffit plus.
+      </p>
+    </div>
+    <span class="tfa__badge" [class.is-on]="state() === 'enabled'">
+      {{ state() === 'enabled' ? 'Activée' : 'Désactivée' }}
+    </span>
+  </header>
+
+  <p class="tfa__msg tfa__msg--error" *ngIf="error()">{{ error() }}</p>
+  <p class="tfa__msg tfa__msg--ok" *ngIf="success()">{{ success() }}</p>
+
+  <!-- ═══════════ INACTIVE ═══════════ -->
+  <div class="tfa__block" *ngIf="state() === 'idle'">
+    <p class="tfa__hint">
+      Nécessite une application d'authentification : Google Authenticator,
+      Microsoft Authenticator, Authy, 1Password…
+    </p>
+    <button type="button" class="tfa__btn tfa__btn--primary"
+            [disabled]="loading()" (click)="startSetup()">
+      {{ loading() ? 'Préparation…' : 'Activer la double authentification' }}
+    </button>
+  </div>
+
+  <!-- ═══════════ CONFIGURATION ═══════════ -->
+  <div class="tfa__block" *ngIf="state() === 'setup' && setupData() as data">
+
+    <ol class="tfa__steps">
+      <li>
+        <strong>Scannez ce QR code</strong> avec votre application d'authentification.
+        <div class="tfa__qr">
+          <img *ngIf="qrDataUrl()" [src]="qrDataUrl()" alt="QR code de configuration" />
+          <p class="tfa__qr-fallback" *ngIf="!qrDataUrl()">
+            QR code indisponible — utilisez la saisie manuelle ci-dessous.
+          </p>
+        </div>
+        <details class="tfa__manual">
+          <summary>Impossible de scanner ? Saisir la clé manuellement</summary>
+          <code class="tfa__secret">{{ data.secret }}</code>
+        </details>
+      </li>
+
+      <li>
+        <strong>Conservez vos codes de secours.</strong>
+        <p class="tfa__warn">
+          Ils sont affichés <em>une seule fois</em> et permettent de vous
+          connecter si vous perdez votre téléphone. Sans eux et sans votre
+          appareil, l'accès au compte est définitivement perdu.
+        </p>
+        <ul class="tfa__codes">
+          <li *ngFor="let code of data.backup_codes"><code>{{ code }}</code></li>
+        </ul>
+        <button type="button" class="tfa__btn tfa__btn--ghost" (click)="copyBackupCodes()">
+          Copier les codes
+        </button>
+        <label class="tfa__check">
+          <input type="checkbox" [checked]="backupCodesAcknowledged()"
+                 (change)="backupCodesAcknowledged.set(!backupCodesAcknowledged())" />
+          J'ai enregistré ces codes en lieu sûr
+        </label>
+      </li>
+
+      <li>
+        <strong>Confirmez avec le code affiché</strong> par votre application.
+        <div class="tfa__confirm">
+          <input type="text" inputmode="numeric" autocomplete="one-time-code"
+                 placeholder="000000" maxlength="6"
+                 [(ngModel)]="confirmCode" (input)="onlyDigits($event)"
+                 class="tfa__code-input" />
+          <button type="button" class="tfa__btn tfa__btn--primary"
+                  [disabled]="loading() || !backupCodesAcknowledged()"
+                  (click)="confirmEnable()">
+            {{ loading() ? 'Vérification…' : 'Activer' }}
+          </button>
+        </div>
+        <p class="tfa__hint" *ngIf="!backupCodesAcknowledged()">
+          Confirmez d'abord avoir conservé vos codes de secours.
+        </p>
+      </li>
+    </ol>
+
+    <button type="button" class="tfa__btn tfa__btn--ghost" (click)="cancelSetup()">
+      Annuler
+    </button>
+  </div>
+
+  <!-- ═══════════ ACTIVE ═══════════ -->
+  <div class="tfa__block" *ngIf="state() === 'enabled'">
+    <p class="tfa__hint">
+      Un code vous sera demandé à chaque connexion. Pour désactiver la
+      protection, saisissez un code valide.
+    </p>
+    <div class="tfa__confirm">
+      <input type="text" inputmode="numeric" autocomplete="one-time-code"
+             placeholder="000000" maxlength="6"
+             [(ngModel)]="disableCode" (input)="onlyDigits($event)"
+             class="tfa__code-input" />
+      <button type="button" class="tfa__btn tfa__btn--danger"
+              [disabled]="loading()" (click)="disable()">
+        {{ loading() ? 'Vérification…' : 'Désactiver' }}
+      </button>
+    </div>
+  </div>
+
+</section>

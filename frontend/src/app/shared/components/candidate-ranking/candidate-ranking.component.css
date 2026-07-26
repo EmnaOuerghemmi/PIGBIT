@@ -1,0 +1,176 @@
+/* ============================================================
+   CANDIDATE RANKING — light premium theme
+   Inherits design tokens (--c-*, --r-*, --s-*, --sh-*, --fs-*)
+   from the backoffice shell. Designed for LIGHT surfaces.
+   ============================================================ */
+* { box-sizing: border-box; }
+
+.ranking-container { width: 100%; color: var(--c-ink); font-family: var(--font-sans); }
+
+/* ── Header ── */
+.ranking-header {
+  display: flex; align-items: center; justify-content: space-between; gap: var(--s-4);
+  margin-bottom: var(--s-4);
+}
+.eyebrow {
+  display: block; margin-bottom: 2px;
+  color: var(--c-gold-2); font-size: var(--fs-2xs); font-weight: 800;
+  letter-spacing: 0.14em; text-transform: uppercase;
+}
+.ranking-header h3 { margin: 0; color: var(--c-ink); font-size: var(--fs-h3); font-weight: 800; letter-spacing: -0.01em; }
+.ranking-count {
+  padding: 4px 12px; border-radius: var(--r-pill);
+  background: var(--c-gold-soft); color: var(--c-gold-2);
+  font-size: var(--fs-xs); font-weight: 700;
+}
+
+/* ── Legend ── */
+.legend {
+  display: flex; flex-wrap: wrap; gap: var(--s-4);
+  margin-bottom: var(--s-4); padding: var(--s-3) var(--s-4);
+  border: 1px solid var(--c-line); border-radius: var(--r-md); background: var(--c-surface-2);
+}
+.legend-item { font-size: var(--fs-xs); font-weight: 600; color: var(--c-muted); }
+
+/* ── Loading / empty ── */
+.loading, .empty-state {
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  min-height: 200px; padding: var(--s-7) var(--s-4);
+  border: 1px dashed var(--c-line-strong); border-radius: var(--r-lg);
+  background: var(--c-surface-2); color: var(--c-muted); text-align: center;
+}
+.spinner {
+  width: 32px; height: 32px; margin-bottom: var(--s-3);
+  border: 3px solid var(--c-line); border-top-color: var(--c-gold);
+  border-radius: 50%; animation: spin .8s linear infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* ── List ── */
+/* Une carte par ligne : chacune est compacte au repos (nom + score),
+   donc pas besoin d'étaler plusieurs cartes côte à côte pour éviter le
+   vide — le détail ne s'affiche qu'à la demande (cf. .card-details). */
+.ranking-list {
+  display: grid;
+  gap: 8px;
+  max-width: 900px;
+}
+
+.ranking-card {
+  display: grid; gap: 8px;
+  padding: 10px 12px;
+  border: 1px solid var(--c-line); border-left: 4px solid var(--c-line-strong);
+  border-radius: var(--r-md); background: var(--c-surface);
+  box-shadow: var(--sh-xs);
+  transition: transform .2s var(--ease-out), box-shadow .2s, border-color .2s;
+}
+.ranking-card:hover { transform: translateY(-2px); box-shadow: var(--sh-md); }
+.ranking-card.excellent { border-left-color: var(--c-success); }
+.ranking-card.good      { border-left-color: var(--c-warn); }
+.ranking-card.average   { border-left-color: #E0884B; }
+.ranking-card.poor      { border-left-color: var(--c-danger); }
+/* Fond plat (au lieu du dégradé), léger, pour repérer le n°1 sans surcharger. */
+.ranking-card.top-rank  { background: var(--c-success-soft); }
+
+/* ── Card top ── */
+/* Rang seul : plus d'avatar séparé, redondant avec le badge de rang. */
+.card-top { display: grid; grid-template-columns: 30px minmax(0,1fr) auto; align-items: center; gap: 10px; }
+.rank-badge {
+  display: grid; place-items: center; width: 30px; height: 30px;
+  border-radius: var(--r-sm); color: #fff; font-size: .82rem; font-weight: 800;
+  /* Couleur unie, sans dégradé. */
+  background: var(--c-nav);
+}
+.rank-gold   { background: #C28A29; }
+.rank-silver { background: #6E7C82; }
+.rank-bronze { background: #9A5A2C; }
+
+.candidate-info { min-width: 0; }
+.candidate-label { display: block; color: var(--c-muted); font-size: 9px; text-transform: uppercase; letter-spacing: 0.08em; }
+.candidate-info strong {
+  display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  color: var(--c-ink); font-family: var(--font-sans); font-size: var(--fs-xs); font-weight: 700;
+}
+
+.score-block { display: flex; flex-direction: column; align-items: flex-end; gap: 3px; }
+.score-display { display: flex; align-items: baseline; gap: 2px; color: var(--c-ink); font-weight: 800; }
+.score-display span { font-size: 1.1rem; font-family: var(--font-display); letter-spacing: -0.02em; }
+.score-display small { color: var(--c-muted); font-size: 10px; }
+
+/* ── Bascule détails / carte repliée ── */
+.details-toggle {
+  display: flex; align-items: center; justify-content: center; gap: 5px;
+  padding: 4px; margin: 0; border: none; border-top: 1px solid var(--c-line);
+  background: transparent; color: var(--c-muted);
+  font: inherit; font-size: 11px; font-weight: 700; cursor: pointer;
+}
+.details-toggle:hover { color: var(--c-ink); }
+.details-toggle svg { transition: transform .2s var(--ease-out); }
+.details-toggle svg.is-open { transform: rotate(180deg); }
+
+.card-details { display: grid; gap: 8px; }
+
+.score-badge { display: inline-flex; padding: 2px 8px; border-radius: var(--r-pill); font-size: 10px; font-weight: 800; white-space: nowrap; }
+.score-badge.excellent { background: var(--c-success-soft); color: #1f7a4d; border: 1px solid var(--c-success); }
+.score-badge.good      { background: var(--c-warn-soft);    color: #9a6516; border: 1px solid var(--c-warn); }
+.score-badge.average   { background: #FBE3CF;               color: #9c531f; border: 1px solid #E0884B; }
+.score-badge.poor      { background: var(--c-danger-soft);  color: #9b2f2f; border: 1px solid var(--c-danger); }
+
+/* ── Score breakdown ── */
+/* Empilé plutôt qu'en 3 colonnes égales : sur une carte étroite, 3 colonnes
+   laissaient beaucoup de vide autour de labels courts comme "Formation". */
+.scores-breakdown { display: grid; gap: 8px; }
+.score-item { display: grid; gap: 4px; }
+.score-row { display: flex; justify-content: space-between; gap: var(--s-2); color: var(--c-ink-soft); font-size: var(--fs-xs); font-weight: 700; }
+.score-bar { height: 8px; overflow: hidden; border-radius: var(--r-pill); background: var(--c-surface-3); }
+/* Couleur unie, alignée sur le niveau de la carte plutôt qu'un dégradé fixe. */
+.score-bar-fill { height: 100%; border-radius: var(--r-pill); background: var(--c-nav); transition: width .5s var(--ease-out); }
+.ranking-card.excellent .score-bar-fill { background: var(--c-success); }
+.ranking-card.good      .score-bar-fill { background: var(--c-warn); }
+.ranking-card.average   .score-bar-fill { background: #E0884B; }
+.ranking-card.poor      .score-bar-fill { background: var(--c-danger); }
+
+/* ── Skill chips ── */
+.skills-row { display: flex; flex-direction: column; gap: var(--s-2); padding-top: var(--s-3); border-top: 1px solid var(--c-line); }
+.chips-mini { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.chips-label { font-size: var(--fs-sm); font-weight: 900; color: var(--c-success); min-width: 12px; }
+.chips-label.miss { color: var(--c-danger); }
+.chip-mini { display: inline-flex; padding: 3px 10px; border-radius: var(--r-pill); font-size: var(--fs-2xs); font-weight: 700; }
+.chip-green { border: 1px solid var(--c-success); background: var(--c-success-soft); color: #1f7a4d; }
+.chip-red   { border: 1px solid var(--c-danger);  background: var(--c-danger-soft);  color: #9b2f2f; }
+.chip-more  { border: 1px solid var(--c-line-strong); background: var(--c-surface-2); color: var(--c-muted); }
+
+/* ── Recommendation ── */
+.recommendation-line {
+  padding: var(--s-3) var(--s-4); border-radius: var(--r-sm);
+  border-left: 3px solid var(--c-gold);
+  background: var(--c-surface-2); color: var(--c-ink-soft);
+  font-size: var(--fs-sm); line-height: 1.5;
+}
+
+/* ── Interview status ── */
+.interview-status-pill {
+  display: inline-flex; align-items: center; gap: 6px; align-self: flex-start;
+  padding: 4px 12px; border-radius: var(--r-pill); font-size: var(--fs-xs); font-weight: 700;
+}
+.interview-status-pill.is-confirmed { background: var(--c-success-soft); color: #1f7a4d; border: 1px solid var(--c-success); }
+.interview-status-pill.is-pending   { background: var(--c-warn-soft);    color: #9a6516; border: 1px solid var(--c-warn); }
+
+/* ── Actions ── */
+.workflow-actions { display: flex; justify-content: flex-end; gap: var(--s-2); padding-top: var(--s-3); border-top: 1px solid var(--c-line); }
+.action-btn {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 9px 16px; border-radius: var(--r-pill); border: none;
+  font: inherit; font-size: var(--fs-sm); font-weight: 700; cursor: pointer;
+  transition: transform .18s var(--ease-out), filter .2s, background-color .2s;
+}
+.action-btn:hover:not(:disabled) { transform: translateY(-1px); }
+.action-btn:disabled { opacity: .5; cursor: not-allowed; }
+.action-negotiate { background: var(--c-gold-2); color: #fff; }
+.action-interview { background: var(--c-info); color: #fff; }
+.action-reject    { background: var(--c-danger-soft); color: #9b2f2f; border: 1px solid var(--c-danger); }
+.action-reject:hover { background: var(--c-danger); color: #fff; }
+
+@media (max-width: 760px) {
+  .legend { display: none; }
+}

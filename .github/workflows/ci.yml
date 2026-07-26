@@ -105,12 +105,6 @@ jobs:
 
     steps:
       - uses: actions/checkout@v4
-        with:
-          # `frontend/` est actuellement un dépôt imbriqué. Tant qu'il n'est
-          # pas intégré au dépôt principal (ou déclaré comme sous-module avec
-          # un remote), cette étape récupère un dossier vide et la tâche
-          # échoue — voir la note dans le README.
-          submodules: recursive
 
       - name: Installer Node
         uses: actions/setup-node@v4

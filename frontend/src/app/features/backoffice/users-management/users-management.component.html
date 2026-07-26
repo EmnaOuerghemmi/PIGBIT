@@ -1,0 +1,280 @@
+<div class="users-page">
+
+  <!-- ── HEADER ─────────────────────────────────────────── -->
+  <header class="page-header">
+    <div class="page-header__intro">
+      <span class="eyebrow">Administration</span>
+      <h1>Gestion des utilisateurs</h1>
+      <p>Comptes, rôles et permissions sur la plateforme PIQBIT.</p>
+    </div>
+    <button (click)="openAddUserModal()" class="btn btn--primary btn--lg" type="button">
+      <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+        <line x1="12" y1="5" x2="12" y2="19"/>
+        <line x1="5" y1="12" x2="19" y2="12"/>
+      </svg>
+      Ajouter un utilisateur
+    </button>
+  </header>
+
+  <!-- ── FILTERS ────────────────────────────────────────── -->
+  <section class="filters-bar surface">
+    <div class="search-pill">
+      <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <circle cx="11" cy="11" r="7"/>
+        <path d="m20 20-3.5-3.5"/>
+      </svg>
+      <input
+        type="search"
+        placeholder="Rechercher par nom, email…"
+        [(ngModel)]="searchQuery"
+        (ngModelChange)="filterUsers()" />
+    </div>
+
+    <div class="select-pill">
+      <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <circle cx="12" cy="7" r="4"/>
+        <path d="M5 21v-2a4 4 0 0 1 4-4h6a4 4 0 0 1 4 4v2"/>
+      </svg>
+      <select [(ngModel)]="selectedRole" (ngModelChange)="filterUsers()">
+        <option value="">Tous les rôles</option>
+        <option value="ADMIN">Admin</option>
+        <option value="RH_MANAGER">RH Manager</option>
+        <option value="RH_STAFF">RH Staff</option>
+        <option value="READ_ONLY">Candidat</option>
+      </select>
+    </div>
+
+    <div class="select-pill">
+      <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <line x1="3" y1="6" x2="21" y2="6"/>
+        <line x1="3" y1="12" x2="15" y2="12"/>
+        <line x1="3" y1="18" x2="9" y2="18"/>
+      </svg>
+      <select [(ngModel)]="sortBy" (ngModelChange)="sortUsers()">
+        <option value="created_at">Plus récent</option>
+        <option value="full_name">Nom (A-Z)</option>
+        <option value="email">Email</option>
+      </select>
+    </div>
+  </section>
+
+  <!-- ── TABLE CARD ─────────────────────────────────────── -->
+  <section class="surface table-card">
+    <div *ngIf="isLoading" class="state-block">
+      <span class="spinner" aria-hidden="true"></span>
+      <strong>Chargement des utilisateurs…</strong>
+    </div>
+
+    <div *ngIf="errorMessage" class="alert alert--error">
+      <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <circle cx="12" cy="12" r="10"/>
+        <line x1="12" y1="8" x2="12" y2="12"/>
+        <line x1="12" y1="16" x2="12.01" y2="16"/>
+      </svg>
+      <span>{{ errorMessage }}</span>
+    </div>
+
+    <div class="table-wrap" *ngIf="!isLoading && paginatedUsers.length > 0">
+      <table class="data-table">
+        <thead>
+          <tr>
+            <th>Utilisateur</th>
+            <th>Email</th>
+            <th>Rôle</th>
+            <th>Statut</th>
+            <th>Date création</th>
+            <th class="t-right">Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr *ngFor="let user of paginatedUsers" class="user-row">
+            <td>
+              <div class="person-cell">
+                <span class="avatar avatar--sm">{{ (user.full_name || '?').charAt(0).toUpperCase() }}</span>
+                <span class="person-cell__name">{{ user.full_name }}</span>
+              </div>
+            </td>
+            <td class="muted">{{ user.email }}</td>
+            <td>
+              <span class="role-badge" [ngClass]="'role-' + user.role.toLowerCase()">
+                {{ getRoleLabel(user.role) }}
+              </span>
+            </td>
+            <td>
+              <span class="pill" [ngClass]="user.is_active ? 'pill--success' : 'pill--neutral'">
+                <span class="pill__dot"></span>
+                {{ user.is_active ? 'Actif' : 'Inactif' }}
+              </span>
+            </td>
+            <td class="muted">{{ formatDate(user.created_at) }}</td>
+            <td class="t-right">
+              <div class="actions-cell">
+                <button (click)="editUser(user)" type="button" class="btn btn--icon" title="Modifier">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
+                    <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
+                  </svg>
+                </button>
+                <button (click)="deleteUser(user)" type="button" class="btn btn--icon btn--icon-danger" title="Supprimer">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <polyline points="3 6 5 6 21 6"/>
+                    <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
+                    <line x1="10" y1="11" x2="10" y2="17"/>
+                    <line x1="14" y1="11" x2="14" y2="17"/>
+                  </svg>
+                </button>
+              </div>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div *ngIf="!isLoading && paginatedUsers.length === 0 && !errorMessage" class="empty-state">
+      <div class="empty-state__icon">
+        <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M17 20v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/>
+          <circle cx="9.5" cy="7" r="3.5"/>
+        </svg>
+      </div>
+      <p>Aucun utilisateur trouvé</p>
+    </div>
+  </section>
+
+  <!-- ── PAGINATION ─────────────────────────────────────── -->
+  <nav class="pagination" *ngIf="totalPages > 1" aria-label="Pagination">
+    <button (click)="previousPage()" [disabled]="currentPage === 1" class="btn btn--ghost" type="button">
+      <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+        <polyline points="15 18 9 12 15 6"/>
+      </svg>
+      Précédent
+    </button>
+    <span class="page-info">
+      <strong>Page {{ currentPage }}</strong> sur {{ totalPages }}
+    </span>
+    <button (click)="nextPage()" [disabled]="currentPage === totalPages" class="btn btn--ghost" type="button">
+      Suivant
+      <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+        <polyline points="9 18 15 12 9 6"/>
+      </svg>
+    </button>
+  </nav>
+
+  <!-- ════════════════ MODAL ════════════════ -->
+  <div *ngIf="showModal" class="modal-overlay" (click)="closeModal()" aria-hidden="true"></div>
+  <section *ngIf="showModal" class="user-modal" role="dialog" aria-modal="true" (click)="$event.stopPropagation()">
+
+    <header class="user-modal__head">
+      <div>
+        <span class="eyebrow">{{ editingUser ? 'Modification' : 'Nouvel accès' }}</span>
+        <h2>{{ editingUser ? 'Modifier un utilisateur' : 'Ajouter un utilisateur' }}</h2>
+      </div>
+      <button type="button" (click)="closeModal()" class="btn btn--icon" aria-label="Fermer">
+        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <line x1="18" y1="6" x2="6" y2="18"/>
+          <line x1="6" y1="6" x2="18" y2="18"/>
+        </svg>
+      </button>
+    </header>
+
+    <form (ngSubmit)="saveUser()" class="user-form">
+
+      <div class="form-section">
+        <div class="form-section__head">
+          <span class="step-pill">1</span>
+          <div>
+            <h3>Identité</h3>
+            <p>Informations visibles dans le backoffice.</p>
+          </div>
+        </div>
+
+        <div class="field">
+          <label for="full_name">Nom complet <span class="req">*</span></label>
+          <input id="full_name" type="text" [(ngModel)]="formData.full_name" name="full_name"
+                 placeholder="Ex: Emna Ouerghemmi" class="input" required>
+        </div>
+
+        <div class="field-grid">
+          <div class="field">
+            <label for="email">Email <span class="req">*</span></label>
+            <input id="email" type="email" [(ngModel)]="formData.email" name="email"
+                   placeholder="nom@domaine.com" class="input" required>
+          </div>
+          <div class="field">
+            <label for="username">Nom d'utilisateur <span class="req">*</span></label>
+            <input id="username" type="text" [(ngModel)]="formData.username" name="username"
+                   placeholder="ex: emna_admin" class="input" required>
+          </div>
+        </div>
+
+        <div class="field" *ngIf="!editingUser">
+          <label for="password">Mot de passe temporaire <span class="req">*</span></label>
+          <input id="password" type="password" [(ngModel)]="formData.password" name="password"
+                 placeholder="Minimum 8 caractères" class="input" required>
+        </div>
+      </div>
+
+      <div class="form-section">
+        <div class="form-section__head">
+          <span class="step-pill">2</span>
+          <div>
+            <h3>Accès</h3>
+            <p>Définissez le rôle et l'état du compte.</p>
+          </div>
+        </div>
+
+        <div class="role-options">
+          <label class="role-option" [class.selected]="formData.role === 'READ_ONLY'">
+            <input type="radio" [(ngModel)]="formData.role" name="role" value="READ_ONLY">
+            <div class="role-option__bullet"></div>
+            <div class="role-option__text">
+              <strong>Candidat</strong>
+              <small>Consultation et espace candidat.</small>
+            </div>
+          </label>
+          <label class="role-option" [class.selected]="formData.role === 'RH_STAFF'">
+            <input type="radio" [(ngModel)]="formData.role" name="role" value="RH_STAFF">
+            <div class="role-option__bullet"></div>
+            <div class="role-option__text">
+              <strong>RH Staff</strong>
+              <small>Gestion opérationnelle RH.</small>
+            </div>
+          </label>
+          <label class="role-option" [class.selected]="formData.role === 'RH_MANAGER'">
+            <input type="radio" [(ngModel)]="formData.role" name="role" value="RH_MANAGER">
+            <div class="role-option__bullet"></div>
+            <div class="role-option__text">
+              <strong>RH Manager</strong>
+              <small>Supervision des équipes RH.</small>
+            </div>
+          </label>
+          <label class="role-option" [class.selected]="formData.role === 'ADMIN'">
+            <input type="radio" [(ngModel)]="formData.role" name="role" value="ADMIN">
+            <div class="role-option__bullet"></div>
+            <div class="role-option__text">
+              <strong>Admin</strong>
+              <small>Accès complet à la plateforme.</small>
+            </div>
+          </label>
+        </div>
+
+        <label class="status-toggle">
+          <input type="checkbox" [(ngModel)]="formData.is_active" name="is_active">
+          <span class="toggle-track"></span>
+          <span class="toggle-text">
+            <strong>Compte actif</strong>
+            <small>L'utilisateur peut se connecter immédiatement.</small>
+          </span>
+        </label>
+      </div>
+
+      <footer class="form-actions">
+        <button type="button" (click)="closeModal()" class="btn btn--ghost">Annuler</button>
+        <button type="submit" class="btn btn--primary">
+          {{ editingUser ? 'Mettre à jour' : 'Créer l\'utilisateur' }}
+        </button>
+      </footer>
+    </form>
+  </section>
+
+</div>

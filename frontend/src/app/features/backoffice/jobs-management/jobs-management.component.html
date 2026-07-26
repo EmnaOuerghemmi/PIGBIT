@@ -1,0 +1,490 @@
+<div class="jobs-page">
+
+  <!-- ── PAGE HEADER ─────────────────────────────────────── -->
+  <header class="page-header">
+    <div class="page-header__intro">
+      <span class="eyebrow">Recrutement</span>
+      <h1>Offres d'emploi</h1>
+      <p>Gérez les postes ouverts, les critères de scoring et les candidatures.</p>
+    </div>
+    <button (click)="openCreateDrawer()" class="btn btn--primary btn--lg" type="button">
+      <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+        <line x1="12" y1="5" x2="12" y2="19"/>
+        <line x1="5" y1="12" x2="19" y2="12"/>
+      </svg>
+      Créer une offre
+    </button>
+  </header>
+
+  <!-- ── FILTERS BAR ─────────────────────────────────────── -->
+  <section class="filters-bar surface">
+    <div class="search-pill">
+      <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <circle cx="11" cy="11" r="7"/>
+        <path d="m20 20-3.5-3.5"/>
+      </svg>
+      <input
+        [(ngModel)]="searchTerm"
+        (change)="applyFilters()"
+        placeholder="Rechercher une offre, une compétence..."
+        type="search" />
+    </div>
+
+    <div class="select-pill">
+      <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <line x1="3" y1="6" x2="21" y2="6"/>
+        <line x1="3" y1="12" x2="15" y2="12"/>
+        <line x1="3" y1="18" x2="9" y2="18"/>
+      </svg>
+      <select [(ngModel)]="sortBy" (change)="applyFilters()">
+        <option value="">Trier par…</option>
+        <option value="newest">Plus récents</option>
+        <option value="oldest">Plus anciens</option>
+        <option value="title">Titre (A-Z)</option>
+      </select>
+    </div>
+
+    <div class="filters-bar__count">
+      <strong>{{ filteredJobs.length }}</strong>
+      <span>offre{{ filteredJobs.length > 1 ? 's' : '' }}</span>
+    </div>
+  </section>
+
+  <!-- ── TABLE CARD ──────────────────────────────────────── -->
+  <section class="surface table-card">
+    <div class="table-wrap">
+      <table class="data-table">
+        <thead>
+          <tr>
+            <th>Titre du poste</th>
+            <th>Rémunération</th>
+            <th>Candidats</th>
+            <th>Statut</th>
+            <th class="t-right">Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr *ngFor="let job of filteredJobs">
+            <td>
+              <div class="job-cell">
+                <div class="job-cell__icon">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <rect x="2.5" y="7" width="19" height="13" rx="2.5"/>
+                    <path d="M16 7V5.5A2.5 2.5 0 0 0 13.5 3h-3A2.5 2.5 0 0 0 8 5.5V7"/>
+                  </svg>
+                </div>
+                <div class="job-cell__text">
+                  <div class="job-cell__title">{{ job.title }}</div>
+                  <div class="job-cell__sub" *ngIf="job.required_skills?.length">
+                    {{ (job.required_skills || []).slice(0, 3).join(' · ') }}<span *ngIf="(job.required_skills || []).length > 3"> · +{{ (job.required_skills || []).length - 3 }}</span>
+                  </div>
+                </div>
+              </div>
+            </td>
+            <td>
+              <span *ngIf="job.salary_min" class="salary">
+                {{ job.salary_min | number }}<span *ngIf="job.salary_max"> – {{ job.salary_max | number }}</span>
+                <em>TND</em>
+              </span>
+              <span *ngIf="!job.salary_min" class="muted">—</span>
+            </td>
+            <td>
+              <button (click)="viewApplicants(job.id)" class="count-chip" type="button">
+                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M17 20v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/>
+                  <circle cx="9.5" cy="7" r="3.5"/>
+                </svg>
+                {{ getCandidateCount(job.id) }} candidat{{ getCandidateCount(job.id) > 1 ? 's' : '' }}
+              </button>
+            </td>
+            <td>
+              <span class="pill" [ngClass]="job.is_active ? 'pill--success' : 'pill--neutral'">
+                <span class="pill__dot"></span>
+                {{ job.is_active ? 'Active' : 'Inactive' }}
+              </span>
+            </td>
+            <td class="t-right">
+              <div class="actions-cell">
+                <button (click)="editJob(job)" class="btn btn--icon" title="Éditer" type="button">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
+                    <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
+                  </svg>
+                </button>
+                <button (click)="toggleJob(job.id, !job.is_active)" class="btn btn--icon" [title]="job.is_active ? 'Désactiver' : 'Activer'" type="button">
+                  <svg *ngIf="job.is_active" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <circle cx="12" cy="12" r="10"/>
+                    <line x1="4.93" y1="4.93" x2="19.07" y2="19.07"/>
+                  </svg>
+                  <svg *ngIf="!job.is_active" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <polyline points="20 6 9 17 4 12"/>
+                  </svg>
+                </button>
+              </div>
+            </td>
+          </tr>
+          <tr *ngIf="filteredJobs.length === 0">
+            <td colspan="5">
+              <div class="empty-state">
+                <div class="empty-state__icon">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                    <rect x="2.5" y="7" width="19" height="13" rx="2.5"/>
+                  </svg>
+                </div>
+                <p>Aucune offre disponible</p>
+                <button (click)="openCreateDrawer()" class="btn btn--primary" type="button">Créer la première offre</button>
+              </div>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- ════════════════ DRAWER (Create / Edit) ════════════════ -->
+  <div class="drawer-overlay" *ngIf="drawerOpen" (click)="closeDrawer()" aria-hidden="true"></div>
+  <aside class="drawer" [class.open]="drawerOpen" role="dialog" aria-modal="true">
+    <div class="drawer-content" (click)="$event.stopPropagation()">
+      <header class="drawer-header">
+        <div>
+          <span class="eyebrow eyebrow--gold-on-white">{{ editingJob ? 'Modification' : 'Nouvelle offre' }}</span>
+          <h3>{{ editingJob ? 'Éditer l\'offre' : 'Créer une offre d\'emploi' }}</h3>
+        </div>
+        <button (click)="closeDrawer()" class="btn btn--icon" aria-label="Fermer" type="button">
+          <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <line x1="18" y1="6" x2="6" y2="18"/>
+            <line x1="6" y1="6" x2="18" y2="18"/>
+          </svg>
+        </button>
+      </header>
+
+      <div class="drawer-body">
+        <div class="form-section">
+          <div class="form-section__head">
+            <span class="step-pill">1</span>
+            <div>
+              <h4>Informations générales</h4>
+              <p>Le titre et la description visibles par les candidats.</p>
+            </div>
+          </div>
+
+          <div class="field">
+            <label>Titre <span class="req">*</span></label>
+            <input [(ngModel)]="formData.title" placeholder="Ex: Développeur Python Senior" class="input" />
+          </div>
+
+          <div class="field">
+            <label>Description <span class="req">*</span></label>
+            <textarea [(ngModel)]="formData.description" placeholder="Description du poste, missions, environnement..." class="input" rows="6"></textarea>
+          </div>
+
+          <div class="field-grid">
+            <div class="field">
+              <label>Salaire minimum (TND)</label>
+              <input [(ngModel)]="formData.salary_min" type="number" placeholder="30 000" class="input" />
+            </div>
+            <div class="field">
+              <label>Salaire maximum (TND)</label>
+              <input [(ngModel)]="formData.salary_max" type="number" placeholder="50 000" class="input" />
+            </div>
+          </div>
+        </div>
+
+        <div class="form-section">
+          <div class="form-section__head">
+            <span class="step-pill">2</span>
+            <div>
+              <h4>Critères de sélection</h4>
+              <p>Utilisés par l'algorithme de scoring pour classer les candidats.</p>
+            </div>
+          </div>
+
+          <div class="field">
+            <label>Compétences requises</label>
+            <textarea [(ngModel)]="skillsInput" placeholder="Ex: Python, FastAPI, SQL, Docker" class="input" rows="3"></textarea>
+            <small class="hint">Séparées par des virgules</small>
+          </div>
+
+          <div class="field-grid">
+            <div class="field">
+              <label>Expérience (années)</label>
+              <input [(ngModel)]="formData.required_experience_years" type="number" placeholder="5" class="input" />
+            </div>
+            <div class="field">
+              <label>Niveau d'éducation</label>
+              <select [(ngModel)]="formData.required_education_level" class="input">
+                <option value="">-- Sélectionner --</option>
+                <option value="HIGH_SCHOOL">Baccalauréat</option>
+                <option value="BACHELOR">Licence</option>
+                <option value="INGENIEUR">Ingénieur</option>
+                <option value="MASTER">Master</option>
+                <option value="PhD">Doctorat</option>
+              </select>
+            </div>
+          </div>
+        </div>
+
+        <div class="form-section">
+          <div class="form-section__head">
+            <span class="step-pill">3</span>
+            <div>
+              <h4>Pondérations du scoring</h4>
+              <p>Définissez l'importance relative de chaque critère.</p>
+            </div>
+          </div>
+
+          <div class="weight-row">
+            <div class="weight-row__label">
+              <span>Compétences</span>
+              <strong>{{ formData.weight_skills || 0 }}</strong>
+            </div>
+            <input [(ngModel)]="formData.weight_skills" type="range" min="0" max="1" step="0.1" class="slider" />
+          </div>
+
+          <div class="weight-row">
+            <div class="weight-row__label">
+              <span>Expérience</span>
+              <strong>{{ formData.weight_experience || 0 }}</strong>
+            </div>
+            <input [(ngModel)]="formData.weight_experience" type="range" min="0" max="1" step="0.1" class="slider" />
+          </div>
+
+          <div class="weight-row">
+            <div class="weight-row__label">
+              <span>Éducation</span>
+              <strong>{{ formData.weight_education || 0 }}</strong>
+            </div>
+            <input [(ngModel)]="formData.weight_education" type="range" min="0" max="1" step="0.1" class="slider" />
+          </div>
+
+          <div class="weight-total">
+            <span>Total des pondérations</span>
+            <strong>{{ (formData.weight_skills || 0) + (formData.weight_experience || 0) + (formData.weight_education || 0) | number:'1.1-1' }}</strong>
+          </div>
+        </div>
+      </div>
+
+      <footer class="drawer-footer">
+        <button (click)="closeDrawer()" class="btn btn--ghost" type="button">Annuler</button>
+        <button (click)="saveJob()" class="btn btn--primary" type="button">
+          {{ editingJob ? 'Sauvegarder les modifications' : 'Créer l\'offre' }}
+        </button>
+      </footer>
+    </div>
+  </aside>
+
+  <!-- ════════════════ CANDIDATE MODAL ════════════════ -->
+  <div class="modal-overlay" *ngIf="applicantsModal" (click)="closeApplicants()" aria-hidden="true"></div>
+  <section
+    class="candidate-modal"
+    *ngIf="applicantsModal"
+    role="dialog"
+    aria-modal="true"
+    aria-labelledby="candidate-modal-title">
+
+    <header class="candidate-modal__head">
+      <div class="candidate-modal__title">
+        <span class="eyebrow eyebrow--gold-on-white">Candidatures</span>
+        <h3 id="candidate-modal-title">{{ selectedJobTitle }}</h3>
+        <p>{{ applicants.length }} candidat{{ applicants.length > 1 ? 's' : '' }} pour cette offre</p>
+      </div>
+
+      <nav class="tab-strip" aria-label="Vue des candidats">
+        <button type="button" (click)="applicantTab = 'list'" [class.active]="applicantTab === 'list'">Liste</button>
+        <button type="button" (click)="applicantTab = 'ranking'" [class.active]="applicantTab === 'ranking'">Classement IA</button>
+      </nav>
+
+      <button type="button" (click)="closeApplicants()" class="btn btn--icon" aria-label="Fermer">
+        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <line x1="18" y1="6" x2="6" y2="18"/>
+          <line x1="6" y1="6" x2="18" y2="18"/>
+        </svg>
+      </button>
+    </header>
+
+    <main class="candidate-modal__body">
+      <div *ngIf="applicantsLoading" class="state-block">
+        <span class="spinner" aria-hidden="true"></span>
+        <strong>Chargement des candidats…</strong>
+        <p>Récupération des candidatures liées à cette offre.</p>
+      </div>
+
+      <div *ngIf="!applicantsLoading && applicantsError" class="state-block state-block--error">
+        <div class="state-block__icon">
+          <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="12" cy="12" r="10"/>
+            <line x1="12" y1="8" x2="12" y2="12"/>
+            <line x1="12" y1="16" x2="12.01" y2="16"/>
+          </svg>
+        </div>
+        <strong>Impossible de charger les candidats</strong>
+        <p>{{ applicantsError }}</p>
+        <button type="button" (click)="reloadApplicants()" class="btn btn--ghost">Réessayer</button>
+      </div>
+
+      <ng-container *ngIf="!applicantsLoading && !applicantsError">
+        <div *ngIf="applicantTab === 'list'">
+          <div *ngIf="applicants.length === 0" class="state-block">
+            <div class="state-block__icon">
+              <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M17 20v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/>
+                <circle cx="9.5" cy="7" r="3.5"/>
+              </svg>
+            </div>
+            <strong>Aucune candidature</strong>
+            <p>Cette offre n'a pas encore reçu de candidat.</p>
+          </div>
+
+          <div class="data-table" *ngIf="applicants.length > 0">
+            <table>
+              <thead>
+                <tr>
+                  <th>Candidat</th>
+                  <th>CV</th>
+                  <th>Statut</th>
+                  <th>Date</th>
+                  <th class="t-right">Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr *ngFor="let app of paginatedApplicants">
+                  <td>
+                    <div class="person-cell">
+                      <span class="avatar avatar--sm">{{ app.candidate_name ? getInitials(app.candidate_name) : (app.candidate_id | slice:0:2).toUpperCase() }}</span>
+                      <span class="person-cell__name">{{ app.candidate_name || ('#' + (app.candidate_id | slice:0:8)) }}</span>
+                    </div>
+                  </td>
+                  <td>
+                    <button type="button" (click)="downloadCV(app.cv_file_path)" class="link-btn">
+                      <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                        <polyline points="7 10 12 15 17 10"/>
+                        <line x1="12" y1="15" x2="12" y2="3"/>
+                      </svg>
+                      Télécharger
+                    </button>
+                  </td>
+                  <td>
+                    <select [value]="app.status" (change)="updateAppStatus(app.id, $event)" class="select-mini">
+                      <option value="PENDING">En attente</option>
+                      <option value="REVIEWED">Examinée</option>
+                      <option value="ACCEPTED">Acceptée</option>
+                      <option value="REJECTED">Rejetée</option>
+                    </select>
+                  </td>
+                  <td class="muted">{{ app.created_at | date: 'dd MMM yyyy, HH:mm' }}</td>
+                  <td class="t-right">
+                    <div class="actions-cell">
+                      <button type="button" (click)="previewCV(app.cv_file_path)" class="btn btn--ghost btn--sm">Aperçu</button>
+                      <button type="button" (click)="viewAnalysis(app.id)" class="btn btn--primary btn--sm">Analyse</button>
+                    </div>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
+          <app-pagination
+            *ngIf="applicants.length > 0"
+            [currentPage]="applicantCurrentPage"
+            [totalPages]="applicantTotalPages"
+            [total]="applicants.length"
+            [pageSize]="applicantPageSize"
+            (pageChange)="goToApplicantPage($event)"
+            (pageSizeChange)="onApplicantPageSizeChange($event)">
+          </app-pagination>
+        </div>
+
+        <div *ngIf="applicantTab === 'ranking'">
+          <app-candidate-ranking
+            [jobId]="selectedJobId || ''"
+            [refreshTrigger]="rankingRefreshTrigger"
+            (scheduleInterview)="onScheduleInterview($event)"
+            (startNegotiation)="onStartNegotiation($event)"
+            (rejectCandidate)="onRejectCandidate($event)">
+          </app-candidate-ranking>
+        </div>
+
+        <div *ngIf="applicantTab === 'analysis' && selectedApplicationId">
+          <nav class="tab-strip tab-strip--sub">
+            <button type="button" (click)="analysisFocusTab = 'score'" [class.active]="analysisFocusTab === 'score'">Score</button>
+            <button type="button" (click)="analysisFocusTab = 'cv'" [class.active]="analysisFocusTab === 'cv'">Analyse CV</button>
+          </nav>
+          <app-score-breakdown *ngIf="analysisFocusTab === 'score'" [applicationId]="selectedApplicationId || ''"></app-score-breakdown>
+          <app-cv-analysis     *ngIf="analysisFocusTab === 'cv'"    [applicationId]="selectedApplicationId || ''"></app-cv-analysis>
+        </div>
+      </ng-container>
+    </main>
+  </section>
+
+  <!-- ════════════════ CV PREVIEW MODAL ════════════════ -->
+  <div class="modal-overlay" *ngIf="cvPreviewOpen" (click)="closeCVPreview()"></div>
+  <section class="preview-modal" *ngIf="cvPreviewOpen" role="dialog" aria-modal="true">
+    <header class="preview-modal__head">
+      <div>
+        <span class="eyebrow eyebrow--gold-on-white">CV</span>
+        <h3>Aperçu du document</h3>
+      </div>
+      <button (click)="closeCVPreview()" class="btn btn--icon" aria-label="Fermer" type="button">
+        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <line x1="18" y1="6" x2="6" y2="18"/>
+          <line x1="6" y1="6" x2="18" y2="18"/>
+        </svg>
+      </button>
+    </header>
+    <iframe [src]="cvPreviewPath | safe" class="preview-modal__frame" title="CV"></iframe>
+  </section>
+
+  <!-- ════════════════ INTERVIEW MODAL ════════════════ -->
+  <div class="modal-overlay" *ngIf="showInterviewModal" (click)="showInterviewModal=false"></div>
+  <section class="workflow-modal" *ngIf="showInterviewModal" role="dialog" aria-modal="true">
+    <button class="workflow-modal__close btn btn--icon" (click)="showInterviewModal=false" aria-label="Fermer" type="button">
+      <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <line x1="18" y1="6" x2="6" y2="18"/>
+        <line x1="6" y1="6" x2="18" y2="18"/>
+      </svg>
+    </button>
+    <app-interview-scheduler
+      [applicationId]="workflowApplicationId || ''"
+      [jobTitle]="selectedJobTitle"
+      (closed)="onInterviewSchedulerClosed($event)">
+    </app-interview-scheduler>
+  </section>
+
+  <!-- ════════════════ NEGOTIATION MODAL ════════════════ -->
+  <div class="modal-overlay" *ngIf="showNegotiationModal" (click)="showNegotiationModal=false"></div>
+  <section class="workflow-modal" *ngIf="showNegotiationModal" role="dialog" aria-modal="true">
+    <button class="workflow-modal__close btn btn--icon" (click)="showNegotiationModal=false" aria-label="Fermer" type="button">
+      <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <line x1="18" y1="6" x2="6" y2="18"/>
+        <line x1="6" y1="6" x2="18" y2="18"/>
+      </svg>
+    </button>
+    <div class="negoc">
+      <span class="eyebrow eyebrow--gold-on-white">Agent 2 — Négociation</span>
+      <h4>Lancer la négociation salariale</h4>
+      <p>Saisissez l'offre initiale (TND). L'agent prendra le relais auprès du candidat.</p>
+      <div class="field">
+        <label>Offre initiale (TND / mois)</label>
+        <input type="number" [(ngModel)]="negotiationOffer" placeholder="Ex : 4 000" min="1" class="input" />
+      </div>
+      <div class="negoc__footer">
+        <button class="btn btn--ghost" (click)="showNegotiationModal=false" [disabled]="workflowLoading" type="button">Annuler</button>
+        <button class="btn btn--primary" (click)="confirmNegotiation()" [disabled]="workflowLoading || !negotiationOffer" type="button">
+          <span *ngIf="!workflowLoading">Confirmer</span>
+          <span *ngIf="workflowLoading">En cours…</span>
+        </button>
+      </div>
+    </div>
+  </section>
+
+  <!-- ════════════════ TOAST ════════════════ -->
+  <div class="toast" *ngIf="workflowMessage" (click)="closeWorkflowMessage()" role="status">
+    <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/>
+      <polyline points="22 4 12 14.01 9 11.01"/>
+    </svg>
+    {{ workflowMessage }}
+  </div>
+
+</div>
