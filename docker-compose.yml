@@ -57,6 +57,61 @@ services:
       timeout: 3s
       retries: 5
 
+  # ─── Application ─────────────────────────────────────────────────────────
+  # Les services applicatifs sont dans le profil `app` : `docker compose up -d`
+  # ne démarre donc que l'infrastructure (comportement historique, pratique
+  # quand on lance backend et frontend à la main en développement).
+  # Pile complète :  docker compose --profile app up -d --build
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: piqbit-backend
+    profiles: ["app"]
+    restart: unless-stopped
+    environment:
+      # Noms de services Docker, pas localhost : à l'intérieur du réseau, on
+      # joint PostgreSQL sur son port standard 5432 (le 5434 ne concerne que
+      # la publication vers l'hôte).
+      DATABASE_URL: postgresql+asyncpg://postgres:root@postgres:5432/piqbit
+      REDIS_URL: redis://redis:6379
+      # Le frontend étant servi par nginx sur la même origine, aucune requête
+      # n'est cross-origin : la liste peut rester vide. La renseigner
+      # uniquement si une autre application appelle l'API directement.
+      ALLOWED_ORIGINS: ""
+      ALLOW_LOCALHOST_ORIGINS: "false"
+      DEBUG: "false"
+    env_file:
+      # Fournit SECRET_KEY (obligatoire) et les secrets optionnels : SMTP,
+      # Google OAuth. Sans SECRET_KEY, le backend s'arrête au démarrage avec
+      # une erreur pydantic explicite.
+      # NB : les valeurs ci-dessus (`environment:`) priment sur ce fichier —
+      # DATABASE_URL pointe donc bien vers le conteneur, pas vers le
+      # localhost:5434 utilisé en développement.
+      - path: ./backend/.env
+        required: false
+    volumes:
+      # CV téléversés : doivent survivre à la recréation du conteneur.
+      - uploads:/app/uploads
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: piqbit-frontend
+    profiles: ["app"]
+    restart: unless-stopped
+    ports:
+      - "8080:80"
+    depends_on:
+      - backend
+
 volumes:
   redis-data:
   pg-data:
+  uploads:

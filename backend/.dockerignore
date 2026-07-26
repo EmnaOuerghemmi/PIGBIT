@@ -1,0 +1,28 @@
+# Exclut du contexte de build tout ce que l'image n'a pas à recevoir.
+# venv/ pèse plusieurs Go et serait de toute façon inutilisable dans l'image
+# (binaires Windows) : les dépendances sont réinstallées depuis requirements.txt.
+
+venv
+__pycache__
+**/__pycache__
+*.pyc
+*.pyo
+
+# Secrets et état local — ne doivent jamais entrer dans une image.
+.env
+google-calendar-sa.json
+test.db
+backups
+
+# Données de travail volumineuses, non nécessaires à l'exécution.
+datasets
+cleaned_data
+uploads
+
+.git
+.gitignore
+.pytest_cache
+.vscode
+.idea
+Dockerfile
+.dockerignore
