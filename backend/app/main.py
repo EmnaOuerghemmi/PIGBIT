@@ -137,17 +137,22 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
-# CORS middleware - must be added before routes
+# ─── CORS ──────────────────────────────────────────────────────────────────
+# Les origines viennent de la configuration (ALLOWED_ORIGINS), plus jamais du
+# code : un déploiement se fait en renseignant la variable d'environnement,
+# sans toucher aux sources.
+#   ALLOWED_ORIGINS=https://app.piqbit.tn,https://admin.piqbit.tn
+#   ALLOW_LOCALHOST_ORIGINS=false        # <- impératif en production
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[
-        "http://localhost:4200",
-        "http://localhost:3000",
-        "http://127.0.0.1:4200",
-        "http://127.0.0.1:3000",
-    ],
-    # Dev local : tolère tout port localhost (previews, second ng serve).
-    allow_origin_regex=r"http://(localhost|127\.0\.0\.1):\d+",
+    allow_origins=settings.ALLOWED_ORIGINS,
+    # Développement uniquement : tolère n'importe quel port localhost
+    # (previews Angular, second `ng serve`). Désactivé en production.
+    allow_origin_regex=(
+        r"http://(localhost|127\.0\.0\.1):\d+"
+        if settings.ALLOW_LOCALHOST_ORIGINS
+        else None
+    ),
     allow_credentials=True,
     allow_methods=["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
     allow_headers=["*"],
