@@ -8,3 +8,11 @@ __pycache__/
 node_modules/
 .vscode/
 *.pyc
+
+# Base SQLite transitoire des tests — réécrite à chaque exécution de pytest,
+# elle polluait les diffs en apparaissant modifiée en permanence.
+test.db
+
+# Sauvegardes locales (dumps PostgreSQL, bundles git) : volumineuses et
+# contenant des données réelles, elles n'ont rien à faire dans le dépôt.
+backups/
