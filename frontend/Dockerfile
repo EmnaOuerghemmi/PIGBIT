@@ -31,7 +31,10 @@ COPY nginx.conf /etc/nginx/conf.d/default.conf
 
 EXPOSE 80
 
+# On interroge 127.0.0.1 et non `localhost` : wget résout ce dernier en IPv6
+# ([::1]) alors que nginx n'écoute qu'en IPv4 (`listen 80`), ce qui faisait
+# systématiquement échouer la sonde alors que le service répondait bien.
 HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
-    CMD wget -qO- http://localhost/ >/dev/null 2>&1 || exit 1
+    CMD wget -qO- http://127.0.0.1/ >/dev/null 2>&1 || exit 1
 
 CMD ["nginx", "-g", "daemon off;"]
