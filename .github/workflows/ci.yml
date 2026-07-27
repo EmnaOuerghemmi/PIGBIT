@@ -94,6 +94,12 @@ jobs:
       - name: Tests
         working-directory: backend
         env:
+          # DATABASE_URL est OBLIGATOIRE même si les tests utilisent SQLite :
+          # conftest.py importe app.main, ce qui instancie Settings(), et le
+          # champ n'a pas de valeur par défaut. En CI il n'existe pas de
+          # fichier .env (gitignoré), toute la configuration doit donc venir
+          # de l'environnement.
+          DATABASE_URL: postgresql+asyncpg://postgres:postgres@localhost:5432/piqbit_test
           SECRET_KEY: ci-secret-not-used-in-production
           REDIS_URL: redis://localhost:6379
         run: pytest -q --no-header
