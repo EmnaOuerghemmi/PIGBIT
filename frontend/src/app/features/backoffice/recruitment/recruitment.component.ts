@@ -1,10 +1,11 @@
-import { Component, OnInit } from '@angular/core';
+import { Component, OnInit, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
 import {
   RecruitmentService, JobOffer, RecruitmentSummary,
 } from '../../../core/services/recruitment.service';
+import { ConfirmService } from '../../../core/services/confirm.service';
 import {
   SemanticService, SemanticStatus, SemanticMatch,
 } from '../../../core/services/semantic.service';
@@ -20,6 +21,8 @@ import {
   styleUrls: ['./recruitment.component.css'],
 })
 export class RecruitmentComponent implements OnInit {
+  private confirmService = inject(ConfirmService);
+
   summary: RecruitmentSummary | null = null;
   jobs: JobOffer[] = [];
   selectedJobId = '';
@@ -178,8 +181,14 @@ export class RecruitmentComponent implements OnInit {
     });
   }
 
-  onReject(a: WorkflowAction): void {
-    if (!confirm(`Rejeter ce candidat (score ${a.score.toFixed(0)}/100) et envoyer un email de refus ?`)) return;
+  async onReject(a: WorkflowAction): Promise<void> {
+    const ok = await this.confirmService.ask({
+      title: 'Rejeter le candidat',
+      message: `Rejeter ce candidat (score ${a.score.toFixed(0)}/100) ? Un email de refus lui sera envoyé.`,
+      confirmLabel: 'Rejeter',
+      danger: true,
+    });
+    if (!ok) return;
     this.recruitment.rejectApplication(a.applicationId).subscribe({
       next: () => { this.messageTone = 'success'; this.message = 'Candidature rejetée. Email envoyé.'; this.rankingRefresh++; },
       error: () => { this.messageTone = 'error'; this.message = 'Erreur lors du rejet.'; },

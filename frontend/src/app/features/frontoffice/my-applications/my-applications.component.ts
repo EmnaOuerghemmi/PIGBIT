@@ -1,10 +1,11 @@
-import { Component, OnInit } from '@angular/core';
+import { Component, OnInit, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Router, RouterModule } from '@angular/router';
 import { RecruitmentService, MyApplication } from '../../../core/services/recruitment.service';
 import { SafePipe } from '../../../core/pipes/safe.pipe';
 import { PaginationComponent } from '../../../shared/components/pagination/pagination.component';
+import { ToastService } from '../../../core/services/toast.service';
 
 type StatusFilter = '' | 'PENDING' | 'REVIEWED' | 'ACCEPTED' | 'REJECTED';
 
@@ -16,6 +17,8 @@ type StatusFilter = '' | 'PENDING' | 'REVIEWED' | 'ACCEPTED' | 'REJECTED';
   styleUrls: ['./my-applications.component.css']
 })
 export class MyApplicationsComponent implements OnInit {
+  private toast = inject(ToastService);
+
   applications: MyApplication[] = [];
   filtered: MyApplication[] = [];
   paginated: MyApplication[] = [];
@@ -186,7 +189,7 @@ export class MyApplicationsComponent implements OnInit {
         a.click();
         URL.revokeObjectURL(url);
       },
-      error: () => alert('Erreur lors du téléchargement du CV')
+      error: err => this.toast.fromHttpError(err, 'Le téléchargement du CV a échoué.')
     });
   }
 
@@ -197,7 +200,7 @@ export class MyApplicationsComponent implements OnInit {
         this.cvPreviewPath = url;
         this.cvPreviewOpen = true;
       },
-      error: () => alert('Erreur : impossible de charger le CV')
+      error: err => this.toast.fromHttpError(err, 'Impossible de charger le CV.')
     });
   }
 

@@ -1,8 +1,10 @@
-import { Component, OnInit } from '@angular/core';
+import { Component, OnInit, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { RouterModule } from '@angular/router';
 import { UserManagementService, User, UserCreate } from '../../../core/services/user-management.service';
+import { ToastService } from '../../../core/services/toast.service';
+import { ConfirmService } from '../../../core/services/confirm.service';
 
 @Component({
   selector: 'app-users-management',
@@ -12,6 +14,9 @@ import { UserManagementService, User, UserCreate } from '../../../core/services/
   styleUrls: ['./users-management.component.css']
 })
 export class UsersManagementComponent implements OnInit {
+  private toast = inject(ToastService);
+  private confirmService = inject(ConfirmService);
+
   // Data
   allUsers: User[] = [];
   filteredUsers: User[] = [];
@@ -51,11 +56,9 @@ export class UsersManagementComponent implements OnInit {
     let role = this.selectedRole || undefined;
     let search = this.searchQuery || undefined;
 
-    console.log('Loading users with params:', { page: this.currentPage, size: this.pageSize, role, search });
 
     this.userService.getUsers(this.currentPage, this.pageSize, role, undefined, search).subscribe({
       next: (response) => {
-        console.log('Users loaded successfully:', response);
         this.allUsers = response.items;
         this.totalUsers = response.total;
         this.totalPages = Math.ceil(response.total / this.pageSize);
@@ -145,7 +148,7 @@ export class UsersManagementComponent implements OnInit {
 
   saveUser(): void {
     if (!this.formData.full_name || !this.formData.email || !this.formData.username) {
-      alert('Veuillez remplir tous les champs obligatoires');
+      this.toast.warning('Veuillez remplir tous les champs obligatoires.');
       return;
     }
 
@@ -159,43 +162,46 @@ export class UsersManagementComponent implements OnInit {
         is_active: this.formData.is_active
       }).subscribe({
         next: () => {
+          this.toast.success('Utilisateur mis à jour.');
           this.closeModal();
           this.loadUsers();
         },
         error: (error) => {
-          console.error('Error updating user:', error);
-          alert('Erreur lors de la mise à jour de l\'utilisateur');
+          this.toast.fromHttpError(error, "Impossible de mettre à jour l'utilisateur.");
         }
       });
     } else {
       // Create new user
       if (!this.formData.password) {
-        alert('Veuillez entrer un mot de passe pour le nouvel utilisateur');
+        this.toast.warning('Saisissez un mot de passe pour le nouvel utilisateur.');
         return;
       }
 
       this.userService.createUser(this.formData as UserCreate).subscribe({
         next: () => {
+          this.toast.success('Utilisateur créé.');
           this.closeModal();
           this.loadUsers();
         },
         error: (error) => {
-          console.error('Error creating user:', error);
-          alert('Erreur lors de la création de l\'utilisateur: ' + (error.error?.detail || 'Erreur inconnue'));
+          this.toast.fromHttpError(error, "Impossible de créer l'utilisateur.");
         }
       });
     }
   }
 
-  deleteUser(user: User): void {
-    if (confirm(`Êtes-vous sûr de vouloir supprimer ${user.full_name}?`)) {
+  async deleteUser(user: User): Promise<void> {
+    const ok = await this.confirmService.askDelete(
+      `Supprimer définitivement le compte de ${user.full_name} ? Cette action est irréversible.`
+    );
+    if (ok) {
       this.userService.deleteUser(user.id).subscribe({
         next: () => {
+          this.toast.success('Utilisateur supprimé.');
           this.loadUsers();
         },
         error: (error) => {
-          console.error('Error deleting user:', error);
-          alert('Erreur lors de la suppression de l\'utilisateur');
+          this.toast.fromHttpError(error, "Impossible de supprimer l'utilisateur.");
         }
       });
     }

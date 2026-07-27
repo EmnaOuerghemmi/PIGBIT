@@ -53,7 +53,6 @@ export class NegotiationService {
   initiateNegotiation(request: NegotiationRequest): Observable<any> {
     return this.http.post(`${this.apiUrl}/initiate`, request).pipe(
       tap(response => {
-        console.log('Négociation initiée:', response);
       })
     );
   }
@@ -87,12 +86,10 @@ export class NegotiationService {
       url: wsUrl,
       openObserver: {
         next: () => {
-          console.log('WebSocket connecté');
         }
       },
       closeObserver: {
         next: () => {
-          console.log('WebSocket déconnecté');
           this.wsSubject = null;
         }
       }

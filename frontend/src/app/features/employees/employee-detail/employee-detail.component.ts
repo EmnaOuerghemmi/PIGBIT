@@ -1,8 +1,9 @@
-import { Component, OnInit } from '@angular/core';
+import { Component, OnInit, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { EmployeeService } from '../../../core/services/employee.service';
 import { Employee } from '../../../core/models/employee.model';
+import { ConfirmService } from '../../../core/services/confirm.service';
 
 @Component({
   selector: 'app-employee-detail',
@@ -12,6 +13,8 @@ import { Employee } from '../../../core/models/employee.model';
   styleUrls: ['./employee-detail.component.css'],
 })
 export class EmployeeDetailComponent implements OnInit {
+  private confirmService = inject(ConfirmService);
+
   employee: Employee | null = null;
   loading = true;
   error = '';
@@ -38,9 +41,12 @@ export class EmployeeDetailComponent implements OnInit {
     });
   }
 
-  remove(): void {
+  async remove(): Promise<void> {
     if (!this.employee) return;
-    if (!confirm(`Supprimer la fiche de ${this.employee.firstName} ${this.employee.lastName} ?`)) return;
+    const ok = await this.confirmService.askDelete(
+      `Supprimer la fiche de ${this.employee.firstName} ${this.employee.lastName} ?`
+    );
+    if (!ok) return;
     this.employeeService.deleteEmployee(this.employee.id).subscribe({
       next: () => this.router.navigate(['/admin/employees']),
       error: () => { this.error = 'Suppression impossible.'; },

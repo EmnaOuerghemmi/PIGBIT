@@ -1,7 +1,9 @@
-import { Component, OnInit } from '@angular/core';
+import { Component, OnInit, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { ContractService, Contract, ContractStats } from '../../../core/services/contract.service';
+import { ToastService } from '../../../core/services/toast.service';
+import { ConfirmService } from '../../../core/services/confirm.service';
 
 @Component({
   selector: 'app-contracts',
@@ -11,6 +13,9 @@ import { ContractService, Contract, ContractStats } from '../../../core/services
   styleUrls: ['./contracts.component.css'],
 })
 export class ContractsComponent implements OnInit {
+  private toast = inject(ToastService);
+  private confirmService = inject(ConfirmService);
+
   contracts: Contract[] = [];
   stats: ContractStats | null = null;
   loading = true;
@@ -72,7 +77,7 @@ export class ContractsComponent implements OnInit {
     this.sendingId = c.id;
     this.contractsSvc.send(c.id).subscribe({
       next: () => { this.sendingId = null; this.load(); },
-      error: (err) => { this.sendingId = null; alert(err?.error?.detail || 'Envoi impossible.'); },
+      error: (err) => { this.sendingId = null; this.toast.fromHttpError(err, "L'envoi a échoué."); },
     });
   }
 
@@ -98,8 +103,11 @@ export class ContractsComponent implements OnInit {
     });
   }
 
-  remove(c: Contract): void {
-    if (!confirm(`Supprimer ce contrat brouillon pour ${c.candidate_name} ?`)) return;
+  async remove(c: Contract): Promise<void> {
+    const ok = await this.confirmService.askDelete(
+      `Supprimer ce contrat brouillon pour ${c.candidate_name} ?`
+    );
+    if (!ok) return;
     this.contractsSvc.remove(c.id).subscribe({ next: () => this.load() });
   }
 

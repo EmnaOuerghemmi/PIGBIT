@@ -1,9 +1,10 @@
-import { Component, OnInit } from '@angular/core';
+import { Component, OnInit, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import {
   CagService, CagAnswer, CagSource, CagStatus, KnowledgeEntry,
 } from '../../../core/services/cag.service';
+import { ConfirmService } from '../../../core/services/confirm.service';
 
 interface ChatMessage {
   role: 'user' | 'assistant';
@@ -22,6 +23,8 @@ interface ChatMessage {
   styleUrls: ['./assistant.component.css'],
 })
 export class AssistantComponent implements OnInit {
+  private confirmService = inject(ConfirmService);
+
   // Chat
   messages: ChatMessage[] = [];
   question = '';
@@ -124,8 +127,11 @@ export class AssistantComponent implements OnInit {
     });
   }
 
-  deleteEntry(e: KnowledgeEntry): void {
-    if (!confirm(`Supprimer « ${e.title} » de la base de connaissances ?`)) return;
+  async deleteEntry(e: KnowledgeEntry): Promise<void> {
+    const ok = await this.confirmService.askDelete(
+      `Supprimer « ${e.title} » de la base de connaissances ?`
+    );
+    if (!ok) return;
     this.cag.deleteKnowledge(e.id).subscribe({ next: () => this.loadKb() });
   }
 

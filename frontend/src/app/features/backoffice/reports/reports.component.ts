@@ -1,10 +1,11 @@
-import { Component, OnInit } from '@angular/core';
+import { Component, OnInit, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { PaginationComponent } from '../../../shared/components/pagination/pagination.component';
 import {
   ReportService, RecruitmentSummary, ReportSnapshot, PaginatedReports,
 } from '../../../core/services/report.service';
+import { ConfirmService } from '../../../core/services/confirm.service';
 
 @Component({
   selector: 'app-reports',
@@ -14,6 +15,8 @@ import {
   styleUrls: ['./reports.component.css'],
 })
 export class ReportsComponent implements OnInit {
+  private confirmService = inject(ConfirmService);
+
   // Résumé live
   summary: RecruitmentSummary | null = null;
 
@@ -149,9 +152,10 @@ export class ReportsComponent implements OnInit {
     });
   }
 
-  remove(r: ReportSnapshot, event: Event): void {
+  async remove(r: ReportSnapshot, event: Event): Promise<void> {
     event.stopPropagation();
-    if (!confirm(`Supprimer le rapport « ${r.title} » ?`)) return;
+    const ok = await this.confirmService.askDelete(`Supprimer le rapport « ${r.title} » ?`);
+    if (!ok) return;
     this.reportService.deleteReport(r.id).subscribe({
       next: () => {
         if (this.reports.length === 1 && this.page > 1) this.page--;

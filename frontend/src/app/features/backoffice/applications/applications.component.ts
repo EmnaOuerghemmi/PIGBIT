@@ -1,9 +1,11 @@
-import { Component, OnInit } from '@angular/core';
+import { Component, OnInit, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { Router } from '@angular/router';
 import { RecruitmentService, Application } from '../../../core/services/recruitment.service';
 import { ContractService } from '../../../core/services/contract.service';
 import { SafePipe } from '../../../core/pipes/safe.pipe';
+import { ToastService } from '../../../core/services/toast.service';
+import { ConfirmService } from '../../../core/services/confirm.service';
 
 @Component({
   selector: 'app-applications',
@@ -13,6 +15,9 @@ import { SafePipe } from '../../../core/pipes/safe.pipe';
   styleUrls: ['./applications.component.css']
 })
 export class ApplicationsComponent implements OnInit {
+  private toast = inject(ToastService);
+  private confirmService = inject(ConfirmService);
+
   applications: Application[] = [];
   cvPreviewOpen = false;
   cvPreviewPath = '';
@@ -48,7 +53,7 @@ export class ApplicationsComponent implements OnInit {
       },
       error: (err) => {
         this.generatingContract = null;
-        alert(err?.error?.detail || 'Impossible de générer le contrat.');
+        this.toast.fromHttpError(err, 'Impossible de générer le contrat.');
         if (err?.status === 409) this.router.navigate(['/admin/contracts']);
       },
     });
@@ -71,11 +76,14 @@ export class ApplicationsComponent implements OnInit {
     });
   }
 
-  deleteApp(appId: string) {
-    if (confirm('Supprimer définitivement cette candidature et son CV ? Cette action est irréversible.')) {
+  async deleteApp(appId: string) {
+    const ok = await this.confirmService.askDelete(
+      'Supprimer définitivement cette candidature et son CV ? Cette action est irréversible.'
+    );
+    if (ok) {
       this.recruitment.deleteApplication(appId).subscribe({
         next: () => this.loadApplications(),
-        error: err => alert('Erreur: ' + (err.error?.detail || 'Suppression impossible (réservée aux administrateurs).'))
+        error: err => this.toast.fromHttpError(err, 'Suppression impossible — réservée aux administrateurs.')
       });
     }
   }
@@ -90,7 +98,7 @@ export class ApplicationsComponent implements OnInit {
         link.click();
         URL.revokeObjectURL(url);
       },
-      error: err => alert('Erreur export: ' + (err.error?.detail || 'Export impossible'))
+      error: err => this.toast.fromHttpError(err, "L'export a échoué.")
     });
   }
 
@@ -105,7 +113,7 @@ export class ApplicationsComponent implements OnInit {
         this.cvPreviewPath = url;
         this.cvPreviewOpen = true;
       },
-      error: err => alert('Erreur: ' + (err.error?.detail || 'Impossible de charger le CV'))
+      error: err => this.toast.fromHttpError(err, 'Impossible de charger le CV.')
     });
   }
 

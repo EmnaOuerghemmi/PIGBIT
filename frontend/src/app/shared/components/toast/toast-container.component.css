@@ -1,0 +1,95 @@
+/* ============================================================
+   NOTIFICATIONS (TOASTS)
+   ------------------------------------------------------------
+   Monté à la racine : le composant est visible aussi bien
+   au-dessus du frontoffice (jetons --fo-*) que du backoffice
+   (jetons --c-*). Les couleurs sont donc autonomes plutôt que
+   dérivées d'un thème en particulier.
+   ============================================================ */
+* { box-sizing: border-box; }
+
+.toasts {
+  position: fixed;
+  top: 1rem;
+  right: 1rem;
+  /* Au-dessus des modales de l'application (z-index max constaté : 12001). */
+  z-index: 13000;
+  display: flex;
+  flex-direction: column;
+  gap: .6rem;
+  width: min(380px, calc(100vw - 2rem));
+  /* Laisse les clics traverser la zone vide entre deux toasts. */
+  pointer-events: none;
+}
+
+.toast {
+  pointer-events: auto;
+  display: flex;
+  align-items: flex-start;
+  gap: .7rem;
+  padding: .8rem .9rem;
+  border: 1px solid;
+  border-left-width: 4px;
+  border-radius: 12px;
+  background: #fff;
+  box-shadow: 0 12px 32px rgba(15, 30, 30, .16), 0 2px 6px rgba(15, 30, 30, .08);
+  animation: toast-in .22s cubic-bezier(.16, 1, .3, 1);
+}
+
+@keyframes toast-in {
+  from { opacity: 0; transform: translateX(16px); }
+  to   { opacity: 1; transform: translateX(0); }
+}
+
+.toast__icon { flex-shrink: 0; display: flex; padding-top: 1px; }
+.toast__body { flex: 1; min-width: 0; }
+
+.toast__title {
+  display: block;
+  margin-bottom: 2px;
+  font-size: .85rem;
+  font-weight: 800;
+  color: #0f1e1e;
+}
+
+.toast__msg {
+  margin: 0;
+  font-size: .84rem;
+  line-height: 1.5;
+  color: #354747;
+  /* Un message d'erreur backend peut être long : on autorise le retour à la
+     ligne plutôt que de le tronquer. */
+  overflow-wrap: anywhere;
+}
+
+.toast__close {
+  flex-shrink: 0;
+  padding: 2px;
+  border: 0;
+  background: transparent;
+  color: #8a9a9a;
+  cursor: pointer;
+  line-height: 0;
+}
+.toast__close:hover { color: #0f1e1e; }
+
+/* ── Variantes ── */
+.toast--success { border-color: #3da76f; background: #f2fbf6; }
+.toast--success .toast__icon { color: #2e8a59; }
+
+.toast--error { border-color: #d45b5b; background: #fdf4f4; }
+.toast--error .toast__icon { color: #b83c3c; }
+
+.toast--warning { border-color: #d7903a; background: #fdf8f0; }
+.toast--warning .toast__icon { color: #a86c22; }
+
+.toast--info { border-color: #5687b8; background: #f3f8fc; }
+.toast--info .toast__icon { color: #3f6c99; }
+
+@media (max-width: 560px) {
+  .toasts { top: .6rem; right: .6rem; left: .6rem; width: auto; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .toast { animation: none; }
+}

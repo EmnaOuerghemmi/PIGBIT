@@ -1,10 +1,12 @@
-import { Component, OnInit } from '@angular/core';
+import { Component, OnInit, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { AuthService } from '../../../core/services/auth.service';
 import { UserService } from '../../../core/services/user.service';
 import { Router } from '@angular/router';
 import { TwoFactorComponent } from '../../auth/two-factor/two-factor.component';
+import { ToastService } from '../../../core/services/toast.service';
+import { ConfirmService } from '../../../core/services/confirm.service';
 
 interface UserProfile {
   email: string;
@@ -27,6 +29,9 @@ interface UserProfile {
   styleUrls: ['./profile.component.css']
 })
 export class ProfileComponent implements OnInit {
+  private toast = inject(ToastService);
+  private confirmService = inject(ConfirmService);
+
   user: UserProfile | null = null;
   userInitial = '';
   successMsg = '';
@@ -105,26 +110,32 @@ export class ProfileComponent implements OnInit {
     });
   }
 
-  deleteAccount() {
-    const confirm = window.confirm(
-      'Êtes-vous sûr de vouloir supprimer votre compte ? Cette action ne peut pas être annulée.'
-    );
-    if (!confirm) return;
+  async deleteAccount() {
+    // Double confirmation conservée : la suppression de compte est
+    // irréversible et efface les candidatures déjà déposées.
+    const ok = await this.confirmService.ask({
+      title: 'Supprimer votre compte',
+      message: 'Cette action est définitive et ne peut pas être annulée.',
+      confirmLabel: 'Continuer',
+      danger: true,
+    });
+    if (!ok) return;
 
-    const confirmAgain = window.confirm(
-      'Veuillez confirmer une deuxième fois. Toutes vos données seront supprimées.'
-    );
-    if (!confirmAgain) return;
+    const okAgain = await this.confirmService.ask({
+      title: 'Confirmer définitivement',
+      message: 'Toutes vos données, y compris vos candidatures, seront supprimées.',
+      confirmLabel: 'Supprimer mon compte',
+      danger: true,
+    });
+    if (!okAgain) return;
 
     this.userService.deleteMe().subscribe({
       next: () => {
-        alert('Votre compte a été supprimé.');
+        this.toast.success('Votre compte a été supprimé.');
         this.authService.clearSession();
         this.router.navigate(['/register']);
       },
-      error: err => {
-        this.errorMsg = err.error?.detail || 'Échec de la suppression du compte.';
-      },
+      error: err => this.toast.fromHttpError(err, 'La suppression du compte a échoué.'),
     });
   }
 }

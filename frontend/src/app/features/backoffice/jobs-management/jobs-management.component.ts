@@ -1,4 +1,4 @@
-import { Component, OnInit } from '@angular/core';
+import { Component, OnInit, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { RecruitmentService, JobOffer, Application } from '../../../core/services/recruitment.service';
@@ -8,6 +8,8 @@ import { CandidateRankingComponent, WorkflowAction } from '../../../shared/compo
 import { ScoreBreakdownComponent } from '../../../shared/components/score-breakdown/score-breakdown.component';
 import { CVAnalysisComponent } from '../../../shared/components/cv-analysis/cv-analysis.component';
 import { InterviewSchedulerComponent } from '../../../shared/components/interview-scheduler/interview-scheduler.component';
+import { ToastService } from '../../../core/services/toast.service';
+import { ConfirmService } from '../../../core/services/confirm.service';
 
 @Component({
   selector: 'app-jobs-management',
@@ -26,6 +28,9 @@ import { InterviewSchedulerComponent } from '../../../shared/components/intervie
   styleUrls: ['./jobs-management.component.css']
 })
 export class JobsManagementComponent implements OnInit {
+  private toast = inject(ToastService);
+  private confirmService = inject(ConfirmService);
+
   jobs: JobOffer[] = [];
   filteredJobs: JobOffer[] = [];
   searchTerm = '';
@@ -274,7 +279,7 @@ export class JobsManagementComponent implements OnInit {
         this.cvPreviewPath = url;
         this.cvPreviewOpen = true;
       },
-      error: err => alert('Erreur lors du chargement du CV: ' + err.error?.detail)
+      error: err => this.toast.fromHttpError(err, 'Impossible de charger le CV.')
     });
   }
 
@@ -312,7 +317,7 @@ export class JobsManagementComponent implements OnInit {
         link.click();
         URL.revokeObjectURL(url);
       },
-      error: err => alert('Erreur lors du téléchargement du CV: ' + err.error?.detail)
+      error: err => this.toast.fromHttpError(err, 'Le téléchargement du CV a échoué.')
     });
   }
 
@@ -383,8 +388,14 @@ export class JobsManagementComponent implements OnInit {
     });
   }
 
-  onRejectCandidate(action: WorkflowAction) {
-    if (!confirm(`Rejeter cette candidature (score ${action.score.toFixed(0)}/100) et envoyer un email de refus ?`)) return;
+  async onRejectCandidate(action: WorkflowAction) {
+    const ok = await this.confirmService.ask({
+      title: 'Rejeter la candidature',
+      message: `Rejeter cette candidature (score ${action.score.toFixed(0)}/100) ? Un email de refus sera envoyé au candidat.`,
+      confirmLabel: 'Rejeter',
+      danger: true,
+    });
+    if (!ok) return;
     this.recruitment.rejectApplication(action.applicationId).subscribe({
       next: () => {
         this.workflowMessage = 'Candidature rejetée. Email envoyé au candidat.';

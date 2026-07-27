@@ -46,11 +46,9 @@ export class JobDetailComponent implements OnInit {
   }
 
   onFileSelected(event: Event): void {
-    console.log('📁 File selection triggered');
     const input = event.target as HTMLInputElement;
     if (input.files && input.files.length > 0) {
       const file = input.files[0];
-      console.log('📄 File selected:', file.name, 'Type:', file.type, 'Size:', file.size);
       const allowedTypes = ['application/pdf', 'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'];
       const allowedExt = ['.pdf', '.doc', '.docx'];
       const maxSize = 5 * 1024 * 1024;
@@ -73,9 +71,7 @@ export class JobDetailComponent implements OnInit {
 
       this.selectedFile = file;
       this.errorMsg = '';
-      console.log('✅ File accepted and stored');
     } else {
-      console.log('⚠️ No file selected');
     }
   }
 
@@ -86,12 +82,9 @@ export class JobDetailComponent implements OnInit {
     this.errorMsg = '';
     this.successMsg = '';
 
-    console.log('🚀 Applying to job:', this.job.id, 'File:', this.selectedFile.name);
-    console.log('📌 Auth token:', this.auth.getToken() ? 'EXISTS' : 'MISSING');
 
     this.recruitment.applyToJob(this.job.id, this.selectedFile).subscribe({
       next: (application) => {
-        console.log('✅ Application submitted successfully:', application);
         this.isApplying = false;
         this.successMsg = 'Candidature envoyée avec succès ! Votre candidature est en cours de traitement.';
         this.selectedFile = null;
