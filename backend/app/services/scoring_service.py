@@ -26,13 +26,23 @@ class ScoringService:
 
     @staticmethod
     def _normalize_skill_text(text: str) -> str:
-        """Normalise dotted framework names to their vocabulary form."""
+        """
+        Ramène les noms de frameworks à la forme connue du vocabulaire NLP.
+
+        Couvre les trois écritures rencontrées en pratique : pointée
+        (`react.js`), espacée (`react js`) et accolée (`reactjs`). Les formes
+        accolées sont indispensables ici car `reactjs` et `vuejs` sont absents
+        du vocabulaire : sans cette normalisation, elles ne sont pas
+        reconnues, et `_SKILL_SYNONYMS` — appliqué APRÈS l'extraction — ne
+        peut pas rattraper un jeton que le vocabulaire n'a jamais produit.
+        """
         t = text.lower()
         for a, b in {
-            "node.js": "node", "node js": "node",
+            "node.js": "node", "node js": "node", "nodejs": "node",
             "nest.js": "nestjs", "nest js": "nestjs",
             "next.js": "nextjs", "next js": "nextjs",
-            "react.js": "react", "vue.js": "vue",
+            "react.js": "react", "react js": "react", "reactjs": "react",
+            "vue.js": "vue", "vue js": "vue", "vuejs": "vue",
         }.items():
             t = t.replace(a, b)
         return t
@@ -40,33 +50,56 @@ class ScoringService:
     @staticmethod
     def _canonical_required_skills(required_skills: list[str] | None) -> set[str]:
         """
-        Turn the job's required skills into a clean set of canonical skill
-        tokens. Re-tokenises through the NLP vocabulary so it is robust to:
-          - skills entered space-separated and stored as one string,
-          - dotted forms (node.js, nest.js) vs vocabulary forms.
-        Falls back to separator-splitting for non-vocabulary skills.
+        Transforme les compétences requises d'une offre en un ensemble de
+        jetons canoniques. Re-tokenise via le vocabulaire NLP pour rester
+        robuste aux compétences saisies en une seule chaîne séparée par des
+        espaces, et aux différentes écritures de frameworks.
+
+        Le repli sur le découpage brut est appliqué **compétence par
+        compétence**, et non globalement. Auparavant il ne se déclenchait que
+        si le vocabulaire ne reconnaissait ABSOLUMENT RIEN : dès qu'une seule
+        compétence était reconnue, toutes les autres — un framework interne,
+        un outil métier — étaient silencieusement perdues. L'offre exigeait
+        alors moins que prévu et les candidats étaient surnotés.
         """
         if not required_skills:
             return set()
         import re
         from app.services.nlp_service import nlp_service
 
-        text = ScoringService._normalize_skill_text(" , ".join(str(s) for s in required_skills))
-        skills = {
-            ScoringService._SKILL_SYNONYMS.get(s, s)
-            for s in nlp_service.extract_skills(text)
-        }
-        if skills:
-            return skills
-        # Fallback: the required skills aren't in the vocabulary — split & keep raw.
-        return {p.strip() for p in re.split(r"[,;\n/|]+", text) if p.strip()}
+        canoniques: set[str] = set()
+        for brute in required_skills:
+            texte = ScoringService._normalize_skill_text(str(brute))
+            # Une entrée peut contenir plusieurs compétences séparées par des
+            # virgules : on les traite indépendamment pour qu'une inconnue
+            # n'entraîne pas la perte de ses voisines.
+            for morceau in re.split(r"[,;\n/|]+", texte):
+                morceau = morceau.strip()
+                if not morceau:
+                    continue
+                reconnues = {
+                    ScoringService._SKILL_SYNONYMS.get(s, s)
+                    for s in nlp_service.extract_skills(morceau)
+                }
+                canoniques |= reconnues if reconnues else {morceau}
+        return canoniques
 
     @staticmethod
     def _canonical_extracted_skills(extracted_skills: list[str] | None) -> set[str]:
-        return {
-            ScoringService._SKILL_SYNONYMS.get(str(s).lower(), str(s).lower())
-            for s in (extracted_skills or [])
-        }
+        """
+        Canonise les compétences extraites du CV.
+
+        Applique la MÊME normalisation que le côté offre : les deux ensembles
+        étant comparés par intersection, toute asymétrie produit de faux
+        écarts. Un CV mentionnant « React.js » face à une offre exigeant
+        « react » comptait auparavant comme une compétence manquante.
+        """
+        canoniques: set[str] = set()
+        for brute in (extracted_skills or []):
+            jeton = ScoringService._normalize_skill_text(str(brute)).strip()
+            if jeton:
+                canoniques.add(ScoringService._SKILL_SYNONYMS.get(jeton, jeton))
+        return canoniques
 
     @staticmethod
     def compute_skills_score(required_skills: list[str] | None, extracted_skills: list[str]) -> float:
